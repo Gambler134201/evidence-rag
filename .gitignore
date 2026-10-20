@@ -1,0 +1,70 @@
+# Local model-workflow records and controller scratch files
+/.model-desk/
+/.workflow-inputs/
+
+# Credentials and machine-specific environment
+.env
+.env.*
+!.env.example
+!.env.*.example
+/secrets/
+/credentials/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python dependencies, caches and build outputs
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+*.egg-info/
+build/
+dist/
+.coverage
+.coverage.*
+htmlcov/
+
+# JavaScript dependencies and generated outputs
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+next-env.d.ts
+
+# Private source documents, uploaded files and persistent runtime data
+# Keep curated public examples and evaluation fixtures in separate tracked paths.
+/data/
+/storage/
+/uploads/
+/private/
+/volumes/
+/evals/runs/
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+*.log
+/logs/
+/tmp/
+/temp/
+
+# Local editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo

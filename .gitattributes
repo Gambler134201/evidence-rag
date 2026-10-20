@@ -1,0 +1,21 @@
+# Store text consistently across Windows and Linux.
+* text=auto eol=lf
+
+# Markdown uses trailing spaces for explicit line breaks.
+*.md whitespace=-blank-at-eol
+
+# Windows command scripts require CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Preserve binary assets without line-ending conversion.
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.zip binary
