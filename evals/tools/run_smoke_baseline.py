@@ -220,7 +220,7 @@ def main() -> int:
 
     settings_cfg = {
         "date": datetime.now(timezone.utc).isoformat(),
-        "generation": {"base": settings.generation_base_url, "model": settings.generation_model},
+        "generation": {"base": "（本地 tailnet 端点，见 .env；不入库）", "model": settings.generation_model},
         "embedding": {"base": settings.embedding_base_url, "model": settings.embedding_model,
                       "dimension": settings.embedding_dimension},
         "pipeline": "v1 exact-vector top_k=5 candidate_k=20",
