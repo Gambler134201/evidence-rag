@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-24T13:44:07.006080+00:00",
+  "mode": "hybrid",
+  "dataset": "evals/datasets/smoke-10.jsonl",
+  "top_k": 5,
+  "generation": {
+    "base": "",
+    "model": "见 .env（本地端点）"
+  },
+  "embedding": {
+    "model": "BAAI/bge-m3（免费标准版）",
+    "dimension": 1024
+  },
+  "corpus": "skipped"
+}
