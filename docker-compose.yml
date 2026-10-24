@@ -1,0 +1,22 @@
+# 本项目专用 PostgreSQL + pgvector。只含数据库服务；应用服务在 S1-T01 骨架任务中补充。
+# 启动前：复制 .env.example 为 .env 并设置 POSTGRES_PASSWORD。
+# 说明：小语料首期用精确向量检索，不建 HNSW/IVFFlat 索引（见 docs/implementation-plan.md §2）。
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: evidence-rag-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-evidence_rag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 中设置 POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-evidence_rag}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./volumes/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-evidence_rag} -d ${POSTGRES_DB:-evidence_rag}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped

@@ -105,3 +105,23 @@ cd /e/AIjob/gpt/rag
 | Docker / PostgreSQL | 均不可用；WSL 无发行版 |
 | winget | v1.29.380 可用（可用于后续安装 Docker Desktop 等，需管理员） |
 | 端口 3000/8000/5432 | 本轮未复查（沿用 10-21 无监听快照，启动前应重查） |
+
+---
+
+## 9. 同日第二轮：模型接入与数据库路线（用户已决策）
+
+用户在本轮总结后拍板：(1) 生成模型用其本地自部署端点（无密钥），能力不足再提供 DeepSeek 密钥；询问 Embedding 是什么（已解答：语义向量编码模型，与聊天模型相互独立）；(2) 数据库路线采纳建议（Docker Desktop + 官方 pgvector 镜像）。
+
+### 9.1 已执行
+
+- **生成模型连通（S0-T06 生成半项通过）**：`/v1/models` 返回唯一模型 `qwen3.8-flash-next-iq3_xxs`（`n_ctx=262144`，输入 text+image）；中文问答 1 次准确且守指令；严格 JSON 引用契约 1 次通过（可解析、只引 C1、答案正确）。费用记「自有硬件，无 API 账单」。注意：Git Bash 直接 curl 中文会按 GBK 发送导致服务端解码报错，探测须用显式 UTF-8 的 HTTP 客户端。
+- **Embedding 未通过**：该端点 `POST /v1/embeddings` 实测 404；DeepSeek 官方 API 亦无 Embedding 接口。选项与建议（本地部署 bge-m3 为建议项，云端 API 为备选）写入 `docs/model-and-cost.md` §2，待用户部署/选定。
+- **S0-T04 初版交付**：`docs/model-and-cost.md`（生成已确认、Embedding 待定、费用规则、`.env` 变量约定）、`.env.example`、本机 `.env`（真实值，已确认被 gitignore 排除）。
+- **数据库路线落地物**：`docker-compose.yml`（仅 `pgvector/pgvector:pg16` 数据库服务 + healthcheck，应用服务留给 S1-T01）；Docker Desktop 经 winget 启动安装（结果见 9.2）。
+- **文档状态同步**：backlog S0-T04/S0-T06 状态与 §10、plan §8 各增补一段。
+
+### 9.2 进行中 / 待办
+
+- Docker Desktop 安装（winget 后台执行）。装完仍需：首次启动接受条款、确认 WSL2 后端（本机 WSL 无发行版，Docker Desktop 自带两个发行版即可，无需额外安装）、`docker compose up -d` 起 pgvector 并跑 `CREATE EXTENSION vector` 冒烟。若安装因管理员权限/重启受阻，交接时如实记录剩余手工步骤。
+- Embedding 选型：用户部署本地 bge-m3 或选云端 API → 回填 `model-and-cost.md` → 补 S0-T06 Embedding 半项 → 解锁 S1-T05。
+- 下一步开发（离线可做）：S1-T01 骨架 → S1-T02 数据模型迁移；S1-T12 语料扩充；S1-T13 夹具断言。
