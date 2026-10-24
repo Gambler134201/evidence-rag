@@ -1,16 +1,25 @@
 [project]
 name = "evidence-rag"
 version = "0.1.0"
-description = "知据 / evidence-rag：可溯源的团队知识助手。当前仅含离线开发与评测依赖；FastAPI/SQLAlchemy 等服务依赖在 M1 骨架任务中补充并锁定。"
+description = "知据 / evidence-rag：可溯源的团队知识助手。后端依赖（FastAPI/SQLAlchemy/Alembic/pgvector 等）自 M1 骨架起锁定于此；服务依赖变更必须经 uv 锁定。"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.20.1",
+    "fastapi>=0.162.0",
+    "pgvector>=0.5.1",
+    "psycopg[binary]>=3.3.6",
+    "pydantic-settings>=2.16.1",
     "pypdf>=5.0,<7",
+    "sqlalchemy>=2.1.6",
+    "uvicorn[standard]>=0.54.0",
 ]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest>=8.3",
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "evals/tools"]
+testpaths = ["services/api/tests", "evals/tools"]
+pythonpath = ["services/api"]
