@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -95,9 +96,12 @@ def answer_question(
         return {"run_id": str(run.id), "status": status, **payload}
 
     snapshot_before = capture_active_snapshot(session, kb_id)
+    t0 = time.perf_counter()
     top, candidates = search_similar_chunks(
         session, kb_id=kb_id, query_text=question, embedder=embedder, top_k=top_k,
     )
+    retrieval_ms = int((time.perf_counter() - t0) * 1000)
+    run.retrieval_ms = retrieval_ms
 
     if not top or (min_score is not None and top[0].score < min_score):
         return finish("insufficient_evidence", {"segments": [], "evidence": [], "clarify": []},
@@ -130,12 +134,16 @@ def answer_question(
     session.add_all(evidence_rows)
 
     user_prompt = f"【证据开始】\n{_format_evidence(numbered)}\n【证据结束】\n\n问题：{question}"
+    t1 = time.perf_counter()
     try:
         raw = generation.chat(SYSTEM_PROMPT, user_prompt)
         parsed = parse_answer_json(raw)
     except Exception as exc:  # 生成失败/格式错误 → 拦截发布，记录可读原因
+        run.generation_ms = int((time.perf_counter() - t1) * 1000)
         return finish("error", {"segments": [], "evidence": _public_evidence(numbered), "clarify": []},
                       error_class="generation_format", error_detail=str(exc)[:200], segments=[])
+    run.generation_ms = int((time.perf_counter() - t1) * 1000)
+    run.total_ms = retrieval_ms + run.generation_ms
 
     segments = parsed.get("segments") or []
     allowed = {e["id"] for e in numbered}
