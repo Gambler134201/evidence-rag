@@ -14,16 +14,17 @@
 | 费用 | 自有硬件本地推理：单次调用 API 费用为 0；真实成本为电费与硬件占用，按本项目口径记“自有硬件，无 API 账单”，token 用量以响应 `usage` 字段如实记录 |
 | 备用 | 若效果不足（评测显示生成类失败 G1/G3 占比高），用户提供 DeepSeek API 密钥作为对照；DeepSeek 仅覆盖生成，不提供 Embedding（见下） |
 
-## 2. Embedding 模型（待定，阻塞 S1-T05 真实向量写入）
+## 2. Embedding 模型（已选型：硅基流动云端 bge-m3 免费档；待密钥后验证）
 
-**现状**：本地生成端点不提供 `/v1/embeddings`（2026-10-24 实测 404）；DeepSeek 官方 API 也没有 Embedding 接口。Embedding 必须另行解决。
+**决策（2026-10-24，用户选定）**：采用云端 Embedding API——硅基流动 SiliconFlow 标准版 `BAAI/bge-m3`。选择理由：该模型当前在价格页标为免费（收费的是 `Pro/BAAI/bge-m3` 变体，¥0.07/百万 token，本项目不采用）、1024 维、单条输入上限 8192 token、OpenAI 兼容接口与国内直连。接口为 `https://api.siliconflow.cn/v1/embeddings`（国际站为 api.siliconflow.com，本项目用国内域名）。
 
-| 选项 | 说明 | 代价 / 风险 |
-|---|---|---|
-| A（建议） | 本地再部署一个 Embedding 模型，候选 `BAAI/bge-m3`（1024 维，中文效果好，原方案已列为对照候选）；llama.cpp / Ollama 均可挂载 | 零 API 费用、数据不出本机；需要用户再部署一个模型服务，占用少量显存/内存 |
-| B | 云端 Embedding API（如硅基流动 bge-m3 免费档、阿里 DashScope text-embedding-v3 等国内可直连提供方） | 需注册与密钥；语料上传到第三方；费用低但非 0，需按 S0-T04 费用规则记录 |
+- **已配置**：`.env` 中 `EMBEDDING_BASE_URL / EMBEDDING_MODEL / EMBEDDING_DIMENSION=1024` 已填，`EMBEDDING_API_KEY` 待用户在控制台创建后填入（密钥只存 `.env`，不入库）。
+- **注意**：bge-m3 不支持 `dimensions` 参数（传入返回 400）；调用端不得发送该参数，维度一致性以 `EMBEDDING_DIMENSION` 硬校验（脚本 `evals/tools/probe_embedding.py` 已实现）。
+- **待办**：用户创建密钥 → 运行 `probe_embedding.py` → 结果摘录进 `00-model-connectivity.md` 补 S0-T06 Embedding 半项 → 解锁 S1-T05。
+- **费用口径**：标准版免费，费用记 0 并注明“免费标准版 + 记录日期”；若误用 Pro 变体会产生 ¥0.07/M 费用，调用时模型名必须精确为 `BAAI/bge-m3`。
+- **本地部署 bge-m3 保留为后备**：若云端免费档未来取消或网络不稳，可本地部署（GGUF Q8 约 600 MB），配置只需换 `.env` 三个变量。
 
-**选定前的边界**：S1-T05 的真实向量写入保持阻塞，只允许 mock Embedding 跑链路（S1-T11）；冒烟题基线（S1-T10）在 Embedding 选定后执行。选定后把模型名、维度、部署方式回填本文，并锁定配置。
+**背景（原始选项记录）**：本地生成端点不提供 `/v1/embeddings`（2026-10-24 实测 404）；DeepSeek 官方 API 也没有 Embedding 接口。备选方案：本地部署 bge-m3（零 API 费用、数据不出本机）或云端 API（需注册与密钥）。用户选定后者。
 
 ## 3. 费用记录规则（沿用实施方案 §8）
 

@@ -98,7 +98,7 @@
 
 ### S0-T04 模型配置与真实费用边界方案
 - 依赖：S0-T02
-- 状态：`进行中`（2026-10-24 初版交付：`docs/model-and-cost.md`、`.env.example`、`docker-compose.yml`；生成模型已确认为用户本地部署并实测连通，Embedding 选型待用户部署/选择后回填，真实费用上限待 Embedding 选型后补全）
+- 状态：`进行中`（2026-10-24 初版交付：`docs/model-and-cost.md`、`.env.example`、`docker-compose.yml`；生成模型已确认为用户本地部署并实测连通；Embedding 选型已定——硅基流动云端 `BAAI/bge-m3` 免费档，待用户创建 API 密钥后完成半项验证并回填费用记录）
 - 交付物：`docs/model-and-cost.md`、`.env.example`（仅变量名与注释，无值）
 - 验收条件：
   1. `FILE` 生成模型与 Embedding 模型分别列出来源、模型名（待确认则写“待定”）、上下文长度、向量维度、中文效果验证方式；明确“不能假定提供生成的供应商也提供 Embedding”。
@@ -120,7 +120,7 @@
 
 ### S0-T06 生成模型与 Embedding 的最小连通验证
 - 依赖：S0-T04 + 用户授权（模型来源、调用规模、费用上限）
-- 状态：`进行中`（2026-10-24 用户授权本地生成端点并实测：生成半项通过，记录见 `docs/00-model-connectivity.md`；Embedding 半项未通过——本地端点无 `/v1/embeddings`、DeepSeek 无 Embedding 接口，待用户部署/选定 Embedding 来源后补验）
+- 状态：`进行中`（2026-10-24 用户授权本地生成端点并实测：生成半项通过，记录见 `docs/00-model-connectivity.md`；Embedding 选型已定为硅基流动 `BAAI/bge-m3` 免费档，待用户填入 `EMBEDDING_API_KEY` 后运行 `evals/tools/probe_embedding.py` 补验）
 - 交付物：`docs/00-model-connectivity.md`
 - 验收条件：
   1. `FILE` 生成与 Embedding 各至少 1 次最小调用的记录：供应商、模型名、日期、请求条数、返回状态、向量维度（Embedding）、实际费用或 `未知`。
