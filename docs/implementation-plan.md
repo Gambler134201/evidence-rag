@@ -264,4 +264,4 @@ jieba 官方仓库列出搜索模式、自定义词典与 MIT 许可证；rank_b
 
 本轮未安装应用依赖、启动本项目数据库、下载模型或调用产品 Chat/Embedding 服务。此前 Qwen/Pi 调用用于整理开发任务清单，不能作为本项目真实模型连通或 RAG 效果证据。
 
-2026-10-24 增补（ZCode/GLM 会话，明细见 `docs/worklog-20261024-zcode.md`）：项目 Python 环境已建立——uv 0.13.0 + uv 托管 CPython 3.12.15，`.venv` 与 `uv.lock` 已锁定，当前依赖仅 pypdf 6.21.2、pytest 9.1.1；服务依赖（FastAPI/SQLAlchemy 等）在 M1 骨架任务中补充锁定。第三方评审结论已合并进任务清单，`examples/public-docs/` 同步改名 `synthetic-docs/`；冒烟题锚点与格式夹具声明完成机器校验（`evals/anchor-check-20261024.md`、`evals/fixture-check-20261024.md`），冒烟题作者人工复核仍待完成。仍未验证：产品模型连通、PostgreSQL+pgvector 可用性、任何实现与效果指标。本轮未安装数据库、未启动服务、未调用任何模型。
+2026-10-24 增补（ZCode/GLM 会话，明细见 `docs/worklog-20261024-zcode.md`）：项目 Python 环境已建立——uv 0.13.0 + uv 托管 CPython 3.12.15，`.venv` 与 `uv.lock` 已锁定，当前依赖仅 pypdf 6.21.2、pytest 9.1.1；服务依赖（FastAPI/SQLAlchemy 等）在 M1 骨架任务中补充锁定。第三方评审结论已合并进任务清单，`examples/public-docs/` 同步改名 `synthetic-docs/`；冒烟题锚点与格式夹具声明完成机器校验（`evals/anchor-check-20261024.md`、`evals/fixture-check-20261024.md`），冒烟题作者人工复核仍待完成。同日后续：产品模型两路连通已验证（生成为用户本地端点，Embedding 为硅基流动 `BAAI/bge-m3` 免费档，见 `docs/00-model-connectivity.md`）；本项目专用 PostgreSQL 16.15 + pgvector 0.8.7 容器已启动并通过冒烟（扩展创建、L2 算子）。**仍未验证：任何实现与效果指标**；数据库容器属已就绪的基础设施，尚无应用代码连接它。

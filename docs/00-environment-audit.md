@@ -73,5 +73,5 @@ print("venv_module_available=True")
 ## 5. 2026-10-24 增补（ZCode/GLM 会话，经用户授权）
 
 - uv 0.13.0 现已在 PATH 可用（10-21 审计中未发现）；本项目已用 `uv sync` 建立独立 `.venv`（uv 托管 CPython 3.12.15，不再依赖工具内置解释器），依赖锁定于 `pyproject.toml` + `uv.lock`，当前仅 pypdf 6.21.2 与 pytest 9.1.1（含 dev 组）。原“PATH 上只有 WindowsApps 存根”的结论不再成立，但仍不使用任何全局解释器。
-- Docker 客户端仍不可用；`wsl -l -v` 确认未安装任何发行版（仅有系统组件）。PostgreSQL + pgvector 路线（容器 / 本机安装 / 远程实例）仍待用户决策，本轮未安装。
+- ~~Docker 客户端仍不可用~~（已由 2026-10-24 当天后续取代）：用户批准容器路线后，Docker Desktop 4.96.3 + WSL2 组件已安装并重启生效；本项目专用 PostgreSQL 16.15 + pgvector 0.8.7 容器已启动并通过冒烟（扩展创建、L2 算子），过程见 `docs/worklog-20261024-zcode.md` §9。
 - 本轮未启动任何服务、未调用任何模型；环境其余结论沿用 10-21 快照。

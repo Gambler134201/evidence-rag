@@ -122,6 +122,7 @@ cd /e/AIjob/gpt/rag
 
 ### 9.2 进行中 / 待办
 
-- **Docker Desktop 4.96.3 已安装**（winget，2026-10-24，用户确认 UAC）；**WSL2 组件已启用但需重启生效**（`wsl --install --no-distribution` 提权执行，返回“重启前更改不生效”；本机为 Win11 家庭版，Docker 只能用 WSL2 后端）。**重启后剩余步骤**：① 双击 Docker Desktop，首次启动接受服务条款；② 引擎就绪后在项目目录 `docker compose up -d`（读 `.env`，`POSTGRES_PASSWORD` 已预置本机占位值）；③ 冒烟：`docker exec evidence-rag-db psql -U evidence_rag -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname='vector';"`。这些步骤未执行——截至本轮结束机器尚未重启。
+- **Docker Desktop 4.96.3 已安装**（winget，2026-10-24，用户确认 UAC）；WSL2 组件提权启用，用户重启后生效。
+- **数据库已就绪（2026-10-24 第三轮）**：重启后 Docker Desktop 正常（引擎 client/server 29.9.2，WSL2 发行版 `docker-desktop` 运行中）；`docker compose up -d` 启动 `pgvector/pgvector:pg16`（容器 `evidence-rag-db`，端口 5432，healthcheck healthy）。冒烟通过：`CREATE EXTENSION vector` → **pgvector 0.8.7**；**PostgreSQL 16.15**；L2 距离算子实测正确（`[1,2,3]` 与 `[1,2,0]` 距离 3.0）。连接凭据读自 `.env`。停用：`docker compose down`（数据卷 `./volumes/pgdata`，已忽略）。**M0 的环境准备工作至此全部完成**——剩余 M0 任务为 S0-T02（PRD v0.1）与 S0-T08（阶段验收），S0-T04/S0-T06 待验收。
 - Embedding 选型与验证：已定并实测通过（2026-10-24 第二轮）——硅基流动标准版 `BAAI/bge-m3`（免费档，1024 维、8192 token 上限、不支持 `dimensions` 参数）。用户提供的既有 API 密钥实测：最小请求 HTTP 200 / 595 ms / 维度 1024 硬校验一致；中文语义抽查（3 句批量）相关对余弦 0.8115 vs 无关对 0.3551，区分度正常。S0-T06 两半项齐备，转 `待验收`；本地部署 bge-m3（GGUF Q8 约 600 MB）保留为后备。注意：该密钥曾以明文出现在用户与助手的聊天记录中，如在意可在控制台轮换后替换 `.env` 对应行。
 - 下一步开发（离线可做）：S1-T01 骨架 → S1-T02 数据模型迁移；S1-T12 语料扩充；S1-T13 夹具断言。
