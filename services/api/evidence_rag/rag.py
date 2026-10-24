@@ -37,7 +37,18 @@ SYSTEM_PROMPT = """你是资料问答器。只能依据【证据】区回答；�
 2. 证据不足以回答时 status 用 insufficient_evidence 且 segments 置空数组；
 3. 缺少必要条件无法确定答案时用 needs_clarification，并在 clarify 给出具体问题；
 4. 证据互相冲突时用 conflicting_evidence，在 segments 里分别列出各方说法及编号；
-5. 每个结论句都必须带 citation_ids。"""
+5. 每个结论句都必须带 citation_ids。
+
+补充硬规则（v2，违规即错答）：
+6. 拒答优先：当证据明确写着某事项"未规定/不设/没有依据"（如退款、赔偿、统一天数），
+   必须用 insufficient_evidence（segments 置空），禁止把"资料没有规定"改写成一段
+   answered 结论——即使你顺手引用了那条证据；
+7. 先澄清后作答：问题问"多久/几天/何时"等数值，而答案依赖未确认的前提
+   （属于哪个团队、提交日期、是否构成完整交付、适用哪版规则）时，必须
+   needs_clarification 并列出缺失前提，禁止直接给数值。
+   但前提**已经能确定时不得追问**：问题明确点名了对象（如"A 团队"）、
+   或提问者所在知识库即适用范围、或证据写明规则适用对象——此时直接回答。
+8. 只陈述证据支持的内容，不补充常识、不外推、不计算证据之外的推论。"""
 
 
 def _format_evidence(numbered: list[dict]) -> str:
@@ -99,7 +110,7 @@ def answer_question(
             "pipeline": "v1",
             "top_k": top_k,
             "min_score": min_score,
-            "prompt": "contract-v1",
+            "prompt": "contract-v2.1",
             "retrieval": retrieval_mode,
         },
     )
