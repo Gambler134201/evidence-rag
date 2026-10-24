@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # ── 真实模型调用显式开关（默认关闭；测试一律走 mock）──
     enable_real_model_calls: bool = False
 
+    # ── 上传限制（工程配置；超限报 oversized，不得误报成扫描件）──
+    ingest_max_bytes: int = 10 * 1024 * 1024
+
     @property
     def database_url(self) -> str:
         return (

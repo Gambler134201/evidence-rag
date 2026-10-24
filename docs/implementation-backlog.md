@@ -98,7 +98,7 @@
 
 ### S0-T04 模型配置与真实费用边界方案
 - 依赖：S0-T02
-- 状态：`待验收`（2026-10-24 初版交付并补全费用记录：生成模型为用户本地自部署、费用记“自有硬件”；Embedding 为硅基流动 `BAAI/bge-m3` 免费标准版、费用记 0；交付 `docs/model-and-cost.md`、`.env.example`、`docker-compose.yml`）
+- 状态：`已完成`（2026-10-24 用户验收通过。初版交付并补全费用记录：生成模型为用户本地自部署、费用记“自有硬件”；Embedding 为硅基流动 `BAAI/bge-m3` 免费标准版、费用记 0；交付 `docs/model-and-cost.md`、`.env.example`、`docker-compose.yml`）
 - 交付物：`docs/model-and-cost.md`、`.env.example`（仅变量名与注释，无值）
 - 验收条件：
   1. `FILE` 生成模型与 Embedding 模型分别列出来源、模型名（待确认则写“待定”）、上下文长度、向量维度、中文效果验证方式；明确“不能假定提供生成的供应商也提供 Embedding”。
@@ -120,7 +120,7 @@
 
 ### S0-T06 生成模型与 Embedding 的最小连通验证
 - 依赖：S0-T04 + 用户授权（模型来源、调用规模、费用上限）
-- 状态：`待验收`（2026-10-24 两半项均实测通过：生成——本地端点中文问答与 JSON 引用契约；Embedding——硅基流动 bge-m3 最小请求 1024 维一致 + 中文语义抽查区分度正常，记录见 `docs/00-model-connectivity.md`，探测工具 `evals/tools/probe_embedding.py` 可复跑）
+- 状态：`已完成`（2026-10-24 用户验收通过。两半项均实测通过：生成——本地端点中文问答与 JSON 引用契约；Embedding——硅基流动 bge-m3 最小请求 1024 维一致 + 中文语义抽查区分度正常，记录见 `docs/00-model-connectivity.md`，探测工具 `evals/tools/probe_embedding.py` 可复跑）
 - 交付物：`docs/00-model-connectivity.md`
 - 验收条件：
   1. `FILE` 生成与 Embedding 各至少 1 次最小调用的记录：供应商、模型名、日期、请求条数、返回状态、向量维度（Embedding）、实际费用或 `未知`。
@@ -171,7 +171,7 @@
 
 ### S1-T01 仓库骨架、配置与忽略规则
 - 依赖：S0-T05
-- 状态：`待验收`（2026-10-24：后端骨架 `services/api/` 完成——FastAPI 应用工厂、健康/就绪探针、集中配置（真实调用开关默认关）、依赖经 uv 锁定；骨架测试 3 项通过（含对活库的 /readyz）。偏离说明：`apps/web/` 前端骨架按"不批量创建空目录"约定推迟到 S1-T08 有实际页面时建立）
+- 状态：`已完成`（2026-10-24 用户验收通过。后端骨架 `services/api/` 完成——FastAPI 应用工厂、健康/就绪探针、集中配置（真实调用开关默认关）、依赖经 uv 锁定；骨架测试 3 项通过（含对活库的 /readyz）。偏离说明：`apps/web/` 前端骨架按"不批量创建空目录"约定推迟到 S1-T08 有实际页面时建立）
 - 交付物：`apps/web/`、`services/api/`、`services/api/tests/`、`evals/datasets/`、`evals/results/`、`examples/synthetic-docs/`、`docs/`、`docker-compose.yml`、`.env.example`、`README.md`（骨架级）
 - 验收条件：
   1. `FILE` 目录结构与规划仓库结构一致；空目录不为了占位而批量创建。
@@ -182,7 +182,7 @@
 
 ### S1-T02 数据模型 v1 与迁移
 - 依赖：S1-T01
-- 状态：`待验收`（2026-10-24：SQLAlchemy 模型 + Alembic 初始迁移完成——不可变触发器（内容列 UPDATE/DELETE 拒绝）、发布指针组合外键＋半指针 CHECK、chunk-构建版本一致性组合外键、活动任务部分唯一索引、维度 1024 CHECK；11 项约束测试对独立测试库全绿）
+- 状态：`已完成`（2026-10-24 用户验收通过。SQLAlchemy 模型 + Alembic 初始迁移完成——不可变触发器（内容列 UPDATE/DELETE 拒绝）、发布指针组合外键＋半指针 CHECK、chunk-构建版本一致性组合外键、活动任务部分唯一索引、维度 1024 CHECK；11 项约束测试对独立测试库全绿）
 - 交付物：迁移脚本 + 模型定义（users/sessions/memberships、knowledge_bases、documents、document_versions、index_builds、chunks、ingestion_jobs、query_runs/query_run_evidence/feedback；按实施方案合理拆表）
 - 验收条件：
   1. `FILE` 关键字段存在：`knowledge_base_id`、`document_id`、`version_id`、`content_hash`、`locator`、`effective_at`、active 状态、`chunk_id`、`embedding_model`、`embedding_dimension`、`pipeline_revision`。
@@ -193,6 +193,7 @@
 
 ### S1-T03 上传校验、文件哈希与重复检测基础
 - 依赖：S1-T01, S1-T02
+- 状态：`待验收`（2026-10-24：服务层完成——六类错误分类、内容哈希、同文档+同指纹的 ready 构建复用（复用时不发起 Embedding）、指纹变更产生新构建且旧构建保留；HTTP 路由随 S1-T06 链路一起挂载。测试 12 项）
 - 交付物：上传接口 + 哈希与去重逻辑 + 错误分类
 - 验收条件：
   1. `AUTO` 支持 Markdown、TXT、可提取文本的 PDF；其他类型返回明确不支持错误（测试通过）。
@@ -203,6 +204,7 @@
 
 ### S1-T04 解析与分块（标题/段落/PDF 页码定位）
 - 依赖：S1-T03
+- 状态：`待验收`（2026-10-24：MD/TXT/PDF 解析器与分块器完成——标题路径/段落/页码定位、页眉页脚与跨页重复表头剔除、扫描页显式失败、全角归一、断行条款号重连、超限切分不静默截断。token 上限以字符数近似控制并如实标注，精确 tokenizer 校验待定）
 - 交付物：解析器 + 分块器 + 定位信息（标题路径 / 段落 / PDF 页码）
 - 验收条件：
   1. `AUTO` 10 个样例的每个 chunk 都能通过 `locator` 定位到原文位置（标题路径或页码），抽样人工核对与原文一致。
@@ -292,6 +294,7 @@
 
 ### S1-T13 格式夹具 fail-loud 断言（评审缺口 4）
 - 依赖：S1-T04
+- 状态：`待验收`（2026-10-24：5 项断言测试直接使用仓库内真实夹具——扫描页显式失败并列出页码、页眉/页脚/重复表头不进正文 chunk、跨页行 L30 与依据条款共存、脏 TXT 全角归一可命中且断行条款号重组。表头识别启发式（>50% 页出现 + 单页 ≤2 次）经夹具两轮迭代后确定，取舍已写进代码注释）
 - 交付物：针对 `examples/format-fixtures/` 三份夹具的解析断言测试（pytest，按夹具 README 第 3 节逐条落成断言）
 - 验收条件：
   1. `AUTO` fixture-table.pdf：页眉页脚不进入业务 chunk（剔除或单独标记）；跨页表格行不切断，L30 的参数与表头/依据条款不分离；重复表头不产出重复数据；第 2 页的关键结论与前文同 chunk 或带跨页区间标记。

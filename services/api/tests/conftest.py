@@ -12,6 +12,7 @@ from sqlalchemy import create_engine, text
 from evidence_rag.config import get_settings
 
 API_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = API_ROOT.parents[1]
 TEST_DB = "evidence_rag_test"
 
 
