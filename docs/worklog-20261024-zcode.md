@@ -240,3 +240,25 @@ cd /e/AIjob/gpt/rag
 # 1) 后端：ENABLE_REAL_MODEL_CALLS=1 .venv/Scripts/python.exe -m uvicorn evidence_rag.main:app --app-dir services/api --port 8000
 # 2) 前端：cd apps/web && npm run dev → http://localhost:3000 登录 demo/demo123
 ```
+
+---
+
+## 14. 同日第八轮：数据卫生 + S2-T05/T07 收尾
+
+### 14.1 交付
+
+- **基线脚本去重（预览暴露的问题）**：ingest_corpus 按 kb+title 查找复用已有 Document；验证方式是连跑两遍——第二遍 0.2s、构建 ID 完全一致、零重复 Embedding。开发库文档数据清空重建（13 份文档 / 187 chunk，无双胞胎）。清理脚本走过三个坑：组合外键（先置空发布指针）、不可变触发器（连 DELETE 都拦——维护时临时 DISABLE，完成即恢复）。
+- **S2-T07**：完全重复两种口径提示（队列中 → "不会重复计费"；已就绪 → "已复用索引"）；同名不同内容归入同一逻辑文档新版本；跨库独立不泄露状态。
+- **S2-T05 异步任务**：上传从同步处理改为入队；worker `python -m evidence_rag.worker` 独立进程。SKIP LOCKED 认领互斥（跨会话测试）、租约+每批心跳、过期回收、退避重试至 failed、**断点续跑**（chunk 先落库+embedded_until 随批持久化，崩溃至多重做一批——测试用故障注入 Embedding 验证：第 2 批崩溃后续跑只补 2 批）。auto_publish 在 worker 内走预期旧指针校验。
+
+### 14.2 教训
+
+- 测试库跨用例复用 + 队列残留 → 认领测试"单跑过全量挂"：夹具开头先清空遗留队列。
+- 断点续跑的批次数学自己都算错一次（剩余 3 条 / batch 2 = 2 批不是 1 批）——断言写错被真数据纠正。
+- run_job 的生产语义是 claim → run，测试直接调 run 会被状态守卫拦住——测试必须走和生产一样的路径。
+
+### 14.3 现状
+
+- 后端测试 **79 项全绿**；预览数据干净（无重复文档）。
+- 待验收积压：S0-T02/S0-T07、S1-T03~T13、S2-T01~T05/T07/T08。
+- 下一步：S2-T06 管理页面（最后一个功能性页面）→ S2-T09/T10 阶段 2 验收 → S3 评测冻结与 A/B 对照。
