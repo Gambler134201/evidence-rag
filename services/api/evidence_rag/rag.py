@@ -22,6 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .config import get_settings
+from .log_redact import redact
 from .models import QueryRun, QueryRunEvidence
 from .providers import EmbeddingClient, GenerationClient
 from .retrieval import RetrievedChunk, capture_active_snapshot, search_similar_chunks
@@ -108,7 +109,7 @@ def answer_question(
                error_detail: str | None = None, segments: list | None = None) -> dict:
         run.status = status
         run.error_class = error_class
-        run.error_detail = error_detail
+        run.error_detail = redact(error_detail) if error_detail else None
         run.answer_segments = segments
         usage = getattr(generation, "last_usage", None)
         if usage:
@@ -118,7 +119,7 @@ def answer_question(
         out = {"run_id": str(run.id), "status": status, **payload}
         if error_class:
             out["error_class"] = error_class
-            out["error_detail"] = error_detail
+            out["error_detail"] = redact(error_detail)
         return out
 
     snapshot_before = capture_active_snapshot(session, kb_id)

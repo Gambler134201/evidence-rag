@@ -20,6 +20,8 @@ from evidence_rag.models import (
     Session as SessionRow,
     User,
 )
+from evidence_rag import worker
+from evidence_rag.models import IngestionJob
 from evidence_rag.providers import MockEmbedding, MockGeneration
 
 MD = "# 交付规则\n\n## 验收期限\n\nA-D2-02 验收期为次一工作日起 3 个工作日，截止最后一日 18:00。\n"
@@ -350,3 +352,34 @@ def test_29_same_content_across_kbs_is_independent(store, client):
     assert "duplicate_note" not in r2.json(), "跨库不得命中对方的重复状态"
     body = r2.json()
     assert str(store["kb"]) not in __import__("json").dumps(body), "响应不得泄露其他知识库的信息"
+
+
+# ── S2-T09：日志/导出敏感信息边界 ─────────────────────────────────────
+
+def test_30_redact_masks_secrets_in_error_details(store, client):
+    """错误详情经 redact 落库：密钥/令牌/连接串一律遮蔽。"""
+    from evidence_rag.log_redact import redact
+    from evidence_rag.worker import enqueue_ingest
+
+    class LeakyEmbedder(MockEmbedding):
+        def embed(self, texts):
+            raise RuntimeError("embedding failed with Authorization: Bearer sk-abcd1234567890xy and password=hunter2")
+
+    r = enqueue_ingest(store["session"], kb_id=store["kb"], document_id=store["doc"],
+                       filename="脱敏.md", data="# 脱敏\n\nA-Z6-01 内容。\n".encode("utf-8"))
+    worker.run_pending_jobs(store["session"], LeakyEmbedder())
+    j = store["session"].get(IngestionJob, r["job_id"])
+    assert "sk-abcd1234567890xy" not in (j.error_detail or "")
+    assert "hunter2" not in (j.error_detail or "")
+    assert "***" in (j.error_detail or ""), "秘密必须被掩码"
+    assert redact("postgresql+psycopg://user:secret@host/db") == "postgresql+psycopg://user:***@host/db"
+
+
+def test_31_no_endpoint_returns_password_hash(store, client):
+    """任何接口响应不得回传密码哈希（导出/记录边界）。"""
+    _login_as(store, client, "member")
+    for path in ["/auth/me", f"/knowledge-bases/{store['kb']}/documents",
+                 f"/documents/{store['doc']}"]:
+        r = client.get(path)
+        body = r.text
+        assert "password_hash" not in body and store["member"].password_hash not in body, path

@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from .chunking import chunk_document
 from .config import get_settings
 from .errors import IngestError
+from .log_redact import redact
 from .ingest import (
     PARSER_VERSION,
     MAX_PDF_PAGES,
@@ -301,7 +302,7 @@ def run_job(session: Session, job_id: int, embedder) -> str:
 def _fail(session: Session, job, build, version, error_class: str, detail: str) -> str:
     job.status = "failed"
     job.error_class = error_class
-    job.error_detail = detail[:500]
+    job.error_detail = redact(detail)[:500]
     build.status = "failed"
     build.error_detail = f"{error_class}: {detail}"[:500]
     version.status = "failed"
@@ -315,7 +316,7 @@ def _retry_or_fail(session: Session, job, build, version, error_class: str, deta
         return _fail(session, job, build, version, error_class, detail)
     job.status = "queued"
     job.error_class = error_class
-    job.error_detail = detail[:500]
+    job.error_detail = redact(detail)[:500]
     job.next_retry_at = datetime.now(timezone.utc) + timedelta(
         seconds=BACKOFF_SECONDS * job.attempt
     )
