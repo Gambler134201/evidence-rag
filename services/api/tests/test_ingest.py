@@ -122,17 +122,24 @@ def test_storage_never_tracked_by_git(tmp_storage):
 # ── S1-T03：去重与指纹 ───────────────────────────────────────────────────
 
 def test_dedup_reuses_ready_build_without_reembedding(db_session, base_row, tmp_storage):
-    calls = []
+    from evidence_rag.providers import MockEmbedding
+
+    class CountingEmbedder(MockEmbedding):
+        calls = 0
+
+        def embed(self, texts):
+            CountingEmbedder.calls += 1
+            return super().embed(texts)
+
+    embedder = CountingEmbedder()
     first = ingest_version(db_session, kb_id=base_row["kb"], document_id=base_row["doc"],
-                           filename="a.md", data=MD_SAMPLE.encode("utf-8"),
-                           embed_hook=lambda chunks: calls.append(1))
+                           filename="a.md", data=MD_SAMPLE.encode("utf-8"), embedder=embedder)
     assert first["reused"] is False and first["n_chunks"] > 0
     second = ingest_version(db_session, kb_id=base_row["kb"], document_id=base_row["doc"],
-                            filename="a.md", data=MD_SAMPLE.encode("utf-8"),
-                            embed_hook=lambda chunks: calls.append(1))
+                            filename="a.md", data=MD_SAMPLE.encode("utf-8"), embedder=embedder)
     assert second["reused"] is True
     assert second["build_id"] == first["build_id"]
-    assert len(calls) == 1, "复用构建时不得再次发起 Embedding"
+    assert CountingEmbedder.calls == 1, "复用构建时不得再次发起 Embedding"
 
 
 def test_config_change_creates_new_build_keeps_old(db_session, base_row, tmp_storage):

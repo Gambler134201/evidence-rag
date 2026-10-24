@@ -13,9 +13,8 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
-from typing import Callable
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .chunking import Chunk, chunk_document, validate_chunk_config
@@ -93,13 +92,14 @@ def ingest_version(
     data: bytes,
     chunk_config: dict | None = None,
     effective_at: datetime | None = None,
-    embed_hook: Callable[[list[Chunk]], None] | None = None,
+    embedder=None,
 ) -> dict:
     """上传一个新版本并同步处理；返回 {version_id, build_id, reused, n_chunks}。
 
-    reused=True 表示命中已就绪构建：不建新版本、不建新构建、不调用 embed_hook。
-    失败时：version/build/job 行保留 failed 状态与可读错误（条件：失败可见），
-    不产生 chunks，发布指针不动（当前根本不允许发布失败构建）。
+    embedder 提供时对全部 chunk 写入向量（S1-T05）；为 None 时构建停在
+    "无向量"状态，检索查不到（embedding IS NOT NULL 过滤）——不伪造向量。
+    reused=True 表示命中已就绪构建：不建新版本、不建新构建、不重复 Embedding。
+    失败时：version/build/job 行保留 failed 状态与可读错误，不产生 chunks。
     """
     settings = get_settings()
     _validate(filename, data, max_bytes=settings.ingest_max_bytes)
@@ -139,7 +139,9 @@ def ingest_version(
             "n_chunks": reusable.total_chunks,
         }
 
-    effective_at = effective_at or datetime.now(timezone.utc)
+    # 生效时间用数据库时钟：now() 是事务起点，后续所有 effective_at <= now()
+    # 的检索判定都成立；用 Python 时钟会因毫秒差被自己的判定滤掉（实测踩过）。
+    effective_at = effective_at if effective_at is not None else func.now()
     version_no = (
         session.execute(
             select(DocumentVersion.version_no)
@@ -215,7 +217,13 @@ def ingest_version(
     job.step = "chunk"
 
     chunks = chunk_document(parsed, cfg, max_tokens_approx=None)
-    for ordinal, chunk in enumerate(chunks):
+    if embedder is not None and chunks:
+        vectors = embedder.embed([c.content for c in chunks])
+        if len(vectors) != len(chunks):
+            raise IngestError("corrupt_file", f"Embedding 返回数量不符: {len(vectors)} != {len(chunks)}")
+    else:
+        vectors = [None] * len(chunks)
+    for ordinal, (chunk, vector) in enumerate(zip(chunks, vectors)):
         session.add(
             ChunkRow(
                 index_build_id=build.id,
@@ -224,15 +232,13 @@ def ingest_version(
                 content=chunk.content,
                 content_hash=chunk.content_hash,
                 locator=chunk.locator,
+                embedding=vector,
             )
         )
     build.total_chunks = len(chunks)
     build.status = "ready"
     build.completed_at = datetime.now(timezone.utc)
     version.status = "ready"
-
-    if embed_hook is not None:
-        embed_hook(chunks)
 
     return {
         "version_id": version.id,
@@ -241,3 +247,30 @@ def ingest_version(
         "n_chunks": len(chunks),
         "failed": False,
     }
+
+
+def publish_build(session: Session, *, document_id: int, version_id: int, build_id: int) -> None:
+    """发布指针切换（阶段 1 竖切片用）。
+
+    单条 UPDATE 同时写两个指针，数据库层保证半指针不可出现（ck_documents_
+    active_pointer_pair）与归属错配不可出现（组合外键）。预期旧指针检查、
+    失败构建拦截的完整原子发布流程在 S2-T03 实现——本函数不假装已完成它。
+    """
+    build = session.get(IndexBuild, build_id)
+    if build is None or build.version_id != version_id:
+        raise ValueError("build 不属于该 version")
+    if build.status != "ready":
+        raise ValueError("失败构建不发布（当前状态: %s）" % build.status)
+    version = session.get(DocumentVersion, version_id)
+    if version is None or version.document_id != document_id:
+        raise ValueError("version 不属于该 document")
+    if version.status != "ready":
+        raise ValueError("版本未就绪，不能发布")
+    from sqlalchemy import update
+
+    session.execute(
+        update(Document)
+        .where(Document.id == document_id)
+        .values(active_version_id=version_id, active_index_build_id=build_id,
+                updated_at=datetime.now(timezone.utc))
+    )

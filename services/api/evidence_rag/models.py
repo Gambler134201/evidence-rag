@@ -322,6 +322,8 @@ class QueryRun(Base):
     cost_note: Mapped[str | None] = mapped_column(String(128))
     error_class: Mapped[str | None] = mapped_column(String(64))
     error_detail: Mapped[str | None] = mapped_column(Text)
+    # 拦截后不发布正文；answered 状态的 segments 原样留存供运行记录页展示。
+    answer_segments: Mapped[list | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
