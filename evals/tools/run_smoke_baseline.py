@@ -58,30 +58,46 @@ def ensure_kb(session, slug: str) -> int:
 
 
 def ingest_corpus(session, embedder) -> dict[str, dict]:
-    """按语料元数据里的 knowledge_base_id 分库入库并发布；返回 {version_id: build_id}。"""
-    import yaml  # 语料头部是简化 YAML，逐行解析太脆；语料格式见 docs/data-plan.md
+    """按语料元数据分库入库；同一逻辑文档（document_id）归入同一 Document，
+    只发布其最新可用版本（排除 draft/deprecated 后取 effective_at 最大者），
+    避免新旧版本同时可检索。"""
+    import yaml
 
-    results = {}
+    results: dict[str, dict] = {}
     docs_dir = REPO / "examples" / "synthetic-docs"
+    groups: dict[tuple, list] = {}
     for path in sorted(docs_dir.glob("kb-*/*.md")):
         text = path.read_text(encoding="utf-8")
-        meta_text = text.split("---")[1]
-        meta = yaml.safe_load(meta_text)
-        kb_id = ensure_kb(session, meta["knowledge_base_id"])
-        doc = Document(kb_id=kb_id, title=meta["title"])
+        meta = yaml.safe_load(text.split("---")[1])
+        groups.setdefault((meta["knowledge_base_id"], meta["document_id"]), []).append((meta, path))
+
+    for (kb_slug, _doc_id), members in sorted(groups.items()):
+        kb_id = ensure_kb(session, kb_slug)
+        title = members[0][0].get("doc_title") or members[0][0]["title"]
+        doc = Document(kb_id=kb_id, title=title)
         session.add(doc)
         session.flush()
-        r = ingest_version(
-            session, kb_id=kb_id, document_id=doc.id,
-            filename=path.name, data=path.read_bytes(),
-            embedder=embedder,
-        )
-        if r.get("failed"):
-            print(f"  !! 语料入库失败 {path.name}: {r['error_class']}")
-            continue
-        publish_build(session, document_id=doc.id, version_id=r["version_id"], build_id=r["build_id"])
-        results[meta["version_id"]] = {"build_id": r["build_id"], "n_chunks": r["n_chunks"]}
-        print(f"  入库 {meta['knowledge_base_id']}/{meta['version_id']}: {r['n_chunks']} chunks")
+        publish_target = None
+        for meta, path in members:
+            r = ingest_version(
+                session, kb_id=kb_id, document_id=doc.id,
+                filename=path.name, data=path.read_bytes(),
+                embedder=embedder,
+            )
+            if r.get("failed"):
+                print(f"  !! 语料入库失败 {path.name}: {r['error_class']}")
+                continue
+            results[meta["version_id"]] = {"build_id": r["build_id"], "n_chunks": r["n_chunks"]}
+            if meta.get("status") not in ("draft", "deprecated", "historical"):
+                eff = meta.get("effective_at", "")
+                if publish_target is None or eff > publish_target[0]:
+                    publish_target = (eff, r)
+        if publish_target:
+            _, r = publish_target
+            publish_build(session, document_id=doc.id, version_id=r["version_id"], build_id=r["build_id"])
+            print(f"  {kb_slug}/{_doc_id}: 发布 {r['version_id']}（{len(members)} 个版本）")
+        else:
+            print(f"  {kb_slug}/{_doc_id}: 无可发布版本！")
     session.flush()
     return results
 
