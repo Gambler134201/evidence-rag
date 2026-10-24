@@ -1,0 +1,16 @@
+[project]
+name = "evidence-rag"
+version = "0.1.0"
+description = "知据 / evidence-rag：可溯源的团队知识助手。当前仅含离线开发与评测依赖；FastAPI/SQLAlchemy 等服务依赖在 M1 骨架任务中补充并锁定。"
+requires-python = ">=3.12"
+dependencies = [
+    "pypdf>=5.0,<7",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "evals/tools"]
