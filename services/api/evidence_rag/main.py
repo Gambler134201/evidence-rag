@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from . import auth, lifecycle
 from .db import engine, get_session
-from .ingest import ingest_version, publish_build
+from .worker import enqueue_ingest
 from .models import Document, QueryRun
 from .providers import get_clients
 from .rag import answer_question
@@ -144,17 +144,17 @@ def create_app() -> FastAPI:
             doc = Document(kb_id=kb_id, title=title)
             session.add(doc)
             session.flush()
-        generation, embedder = get_clients()
-        result = ingest_version(
+        # S2-T05：上传 = 入队；处理由后台工作进程异步完成（租约/重试/幂等续跑）。
+        result = enqueue_ingest(
             session, kb_id=kb_id, document_id=doc.id,
-            filename=filename, data=data, embedder=embedder,
+            filename=filename, data=data, auto_publish=auto_publish,
         )
-        # 复用构建说明已发布；失败版本必须持久化（失败可见）。
-        # 预期指针 = 发布前读到的状态，防并发任务覆盖较新发布。
-        if not result.get("failed") and auto_publish and not result["reused"]:
-            publish_build(session, document_id=doc.id,
-                          version_id=result["version_id"], build_id=result["build_id"],
-                          expected_old_version_id=doc.active_version_id)
+        # S2-T07：完全重复明确提示，不跨知识库泄露任何状态；同名不同内容
+        # 走新版本（test_27/28/29 覆盖）。近似去重不纳入本期。
+        if result.get("reused"):
+            result["duplicate_note"] = "内容与现有构建完全一致，已复用索引，未重复计费"
+        elif result.get("duplicate"):
+            result["duplicate_note"] = "相同内容的任务已在队列中，不会重复计费或建索引"
         session.commit()
         return {"document_id": doc.id, **result}
 

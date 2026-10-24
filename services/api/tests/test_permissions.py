@@ -292,3 +292,61 @@ def test_24_admin_upload_creates_and_publishes(store, client):
     _login_as(store, client, "member")
     q = client.post(f"/knowledge-bases/{store['kb']}/queries", json={"question": "操作手册 步骤"})
     assert q.status_code == 200
+
+
+# ── S2-T07：完全重复与同名不同内容 ────────────────────────────────────
+
+def test_27_reupload_identical_content_gets_duplicate_note(store, client):
+    _login_as(store, client, "admin")
+    payload = ("# 重复检测\n\n## 条款\n\nA-Z9-01 这份文档用于完全重复检测。\n".encode("utf-8"), "text/markdown")
+    first = client.post(f"/knowledge-bases/{store['kb']}/documents",
+                        files={"file": ("重复检测.md", *payload)})
+    assert first.status_code == 200 and first.json()["reused"] is False
+    second = client.post(f"/knowledge-bases/{store['kb']}/documents",
+                         files={"file": ("重复检测.md", *payload)})
+    assert second.status_code == 200
+    assert second.json()["duplicate"] is True, "同内容任务在队列中时不得重复入队"
+    assert "不会重复计费" in second.json()["duplicate_note"]
+    # 任务处理完成后，再次上传同内容 → 直接复用 ready 构建
+    from evidence_rag.providers import MockEmbedding
+    from evidence_rag.worker import run_pending_jobs
+
+    run_pending_jobs(store["session"], MockEmbedding())
+    third = client.post(f"/knowledge-bases/{store['kb']}/documents",
+                        files={"file": ("重复检测.md", *payload)})
+    assert third.json()["reused"] is True
+    assert "未重复计费" in third.json()["duplicate_note"]
+
+
+def test_28_same_name_different_content_creates_new_version(store, client):
+    _login_as(store, client, "admin")
+    v1 = client.post(f"/knowledge-bases/{store['kb']}/documents",
+                     files={"file": ("同名.md", "# 同名\n\nA-Z8-01 第一版内容。\n".encode("utf-8"),
+                                     "text/markdown")})
+    v2 = client.post(f"/knowledge-bases/{store['kb']}/documents",
+                     files={"file": ("同名.md", "# 同名\n\nA-Z8-02 第二版内容不同。\n".encode("utf-8"),
+                                     "text/markdown")})
+    assert v1.json()["reused"] is False and v2.json()["reused"] is False
+    assert v2.json()["document_id"] == v1.json()["document_id"], "同名应归入同一逻辑文档"
+    assert v2.json()["version_id"] != v1.json()["version_id"], "不同内容必须是新版本"
+
+
+def test_29_same_content_across_kbs_is_independent(store, client):
+    """跨知识库重复不泄露：B 库上传与 A 库完全相同的内容，各自独立建索引。"""
+    session = store["session"]
+    kb2 = KnowledgeBase(name="kb-other", slug="kb-other")
+    session.add(kb2)
+    session.flush()
+    session.add(Membership(user_id=store["admin"].id, kb_id=kb2.id, role="admin"))
+    session.commit()
+    _login_as(store, client, "admin")
+    payload = ("# 跨库.md", "# 跨库\n\nA-Z7-01 两个库各自一份完全相同的内容。\n".encode("utf-8"), "text/markdown")
+    r1 = client.post(f"/knowledge-bases/{store['kb']}/documents",
+                     files={"file": ("跨库.md", payload[1], "text/markdown")})
+    r2 = client.post(f"/knowledge-bases/{kb2.id}/documents",
+                     files={"file": ("跨库.md", payload[1], "text/markdown")})
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert r1.json()["document_id"] != r2.json()["document_id"]
+    assert "duplicate_note" not in r2.json(), "跨库不得命中对方的重复状态"
+    body = r2.json()
+    assert str(store["kb"]) not in __import__("json").dumps(body), "响应不得泄露其他知识库的信息"
