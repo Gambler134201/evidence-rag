@@ -122,6 +122,6 @@ cd /e/AIjob/gpt/rag
 
 ### 9.2 进行中 / 待办
 
-- Docker Desktop 安装（winget 后台执行）。装完仍需：首次启动接受条款、确认 WSL2 后端（本机 WSL 无发行版，Docker Desktop 自带两个发行版即可，无需额外安装）、`docker compose up -d` 起 pgvector 并跑 `CREATE EXTENSION vector` 冒烟。若安装因管理员权限/重启受阻，交接时如实记录剩余手工步骤。
+- **Docker Desktop 4.96.3 已安装**（winget，2026-10-24，用户确认 UAC）；**WSL2 组件已启用但需重启生效**（`wsl --install --no-distribution` 提权执行，返回“重启前更改不生效”；本机为 Win11 家庭版，Docker 只能用 WSL2 后端）。**重启后剩余步骤**：① 双击 Docker Desktop，首次启动接受服务条款；② 引擎就绪后在项目目录 `docker compose up -d`（读 `.env`，`POSTGRES_PASSWORD` 已预置本机占位值）；③ 冒烟：`docker exec evidence-rag-db psql -U evidence_rag -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname='vector';"`。这些步骤未执行——截至本轮结束机器尚未重启。
 - Embedding 选型：用户部署本地 bge-m3 或选云端 API → 回填 `model-and-cost.md` → 补 S0-T06 Embedding 半项 → 解锁 S1-T05。
 - 下一步开发（离线可做）：S1-T01 骨架 → S1-T02 数据模型迁移；S1-T12 语料扩充；S1-T13 夹具断言。
