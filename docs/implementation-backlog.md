@@ -171,6 +171,7 @@
 
 ### S1-T01 仓库骨架、配置与忽略规则
 - 依赖：S0-T05
+- 状态：`待验收`（2026-10-24：后端骨架 `services/api/` 完成——FastAPI 应用工厂、健康/就绪探针、集中配置（真实调用开关默认关）、依赖经 uv 锁定；骨架测试 3 项通过（含对活库的 /readyz）。偏离说明：`apps/web/` 前端骨架按"不批量创建空目录"约定推迟到 S1-T08 有实际页面时建立）
 - 交付物：`apps/web/`、`services/api/`、`services/api/tests/`、`evals/datasets/`、`evals/results/`、`examples/synthetic-docs/`、`docs/`、`docker-compose.yml`、`.env.example`、`README.md`（骨架级）
 - 验收条件：
   1. `FILE` 目录结构与规划仓库结构一致；空目录不为了占位而批量创建。
@@ -181,6 +182,7 @@
 
 ### S1-T02 数据模型 v1 与迁移
 - 依赖：S1-T01
+- 状态：`待验收`（2026-10-24：SQLAlchemy 模型 + Alembic 初始迁移完成——不可变触发器（内容列 UPDATE/DELETE 拒绝）、发布指针组合外键＋半指针 CHECK、chunk-构建版本一致性组合外键、活动任务部分唯一索引、维度 1024 CHECK；11 项约束测试对独立测试库全绿）
 - 交付物：迁移脚本 + 模型定义（users/sessions/memberships、knowledge_bases、documents、document_versions、index_builds、chunks、ingestion_jobs、query_runs/query_run_evidence/feedback；按实施方案合理拆表）
 - 验收条件：
   1. `FILE` 关键字段存在：`knowledge_base_id`、`document_id`、`version_id`、`content_hash`、`locator`、`effective_at`、active 状态、`chunk_id`、`embedding_model`、`embedding_dimension`、`pipeline_revision`。
