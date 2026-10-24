@@ -47,12 +47,33 @@ def _format_evidence(numbered: list[dict]) -> str:
 
 
 def parse_answer_json(raw: str) -> dict:
-    """容忍 ```json 围栏；解析失败抛 ValueError（调用方转 error 状态）。"""
-    text = raw.strip()
+    """宽容提取：直接解析 → ```json 围栏 → 从末尾找第一个可解析的平衡 JSON 对象
+    （思考型模型的 reasoning 里可能混入花括号，取最后一个完整对象）。"""
+    text = (raw or "").strip()
+    if not text:
+        raise ValueError("模型返回为空（可能 reasoning 耗尽 token 预算）")
     fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", text, re.S)
     if fence:
-        text = fence.group(1)
-    return json.loads(text)
+        text = fence.group(1).strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    end = text.rfind("}")
+    while end != -1:
+        depth = 0
+        for start in range(end, -1, -1):
+            if text[start] == "{":
+                depth += 1
+            elif text[start] == "}":
+                depth -= 1
+            if depth == 0 and text[start] == "{":
+                try:
+                    return json.loads(text[start : end + 1])
+                except json.JSONDecodeError:
+                    break
+        end = text.rfind("}", 0, end)
+    raise ValueError(f"未找到可解析的 JSON 对象: {text[:120]}")
 
 
 def answer_question(
@@ -93,7 +114,11 @@ def answer_question(
             run.prompt_tokens = usage.get("prompt_tokens")
             run.completion_tokens = usage.get("completion_tokens")
         session.flush()
-        return {"run_id": str(run.id), "status": status, **payload}
+        out = {"run_id": str(run.id), "status": status, **payload}
+        if error_class:
+            out["error_class"] = error_class
+            out["error_detail"] = error_detail
+        return out
 
     snapshot_before = capture_active_snapshot(session, kb_id)
     t0 = time.perf_counter()
@@ -136,7 +161,12 @@ def answer_question(
     user_prompt = f"【证据开始】\n{_format_evidence(numbered)}\n【证据结束】\n\n问题：{question}"
     t1 = time.perf_counter()
     try:
-        raw = generation.chat(SYSTEM_PROMPT, user_prompt)
+        # max_tokens 取配置（默认 8192，模型支持至 32k 思考）；400 会被思考过程
+        # 吃光导致 JSON 截断——实测教训。
+        raw = generation.chat(
+            SYSTEM_PROMPT, user_prompt,
+            max_tokens=get_settings().generation_max_tokens,
+        )
         parsed = parse_answer_json(raw)
     except Exception as exc:  # 生成失败/格式错误 → 拦截发布，记录可读原因
         run.generation_ms = int((time.perf_counter() - t1) * 1000)

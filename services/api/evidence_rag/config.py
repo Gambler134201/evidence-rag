@@ -42,6 +42,10 @@ class Settings(BaseSettings):
 
     # ── 真实模型调用显式开关（默认关闭；测试一律走 mock）──
     enable_real_model_calls: bool = False
+    # 生成 max_tokens：须覆盖思考型模型的 reasoning + JSON 正文。
+    # 模型上限：思考 32k / 总上下文 256k（用户 2026-10-24 确认）；QA 默认 8192
+    # 平衡时延，基线实测 reasoning+正文在 2048~4000 内完成，8192 留余量。
+    generation_max_tokens: int = 8192
 
     # ── 上传限制（工程配置；超限报 oversized，不得误报成扫描件）──
     ingest_max_bytes: int = 10 * 1024 * 1024

@@ -57,6 +57,17 @@ def ensure_kb(session, slug: str) -> int:
     return kb.id
 
 
+def ensure_user(session, username: str) -> int:
+    from evidence_rag.models import User
+
+    user = session.execute(select(User).where(User.username == username)).scalar_one_or_none()
+    if user is None:
+        user = User(username=username, password_hash="baseline-local", display_name="基线运行")
+        session.add(user)
+        session.flush()
+    return user.id
+
+
 def ingest_corpus(session, embedder) -> dict[str, dict]:
     """按语料元数据分库入库；同一逻辑文档（document_id）归入同一 Document，
     只发布其最新可用版本（排除 draft/deprecated 后取 effective_at 最大者），
@@ -137,9 +148,10 @@ def main() -> int:
             summary.setdefault("占位", []).append(qid)
             continue
         kb_id = ensure_kb(session, q["caller"]["kb"])
+        user_id = ensure_user(session, "baseline")
         started = time.perf_counter()
         resp = answer_question(
-            session, kb_id=kb_id, user_id=1, question=q["q"],
+            session, kb_id=kb_id, user_id=user_id, question=q["q"],
             generation=generation, embedder=embedder,
         )
         elapsed = int((time.perf_counter() - started) * 1000)
@@ -180,6 +192,8 @@ def main() -> int:
             "run_id": resp["run_id"],
             "elapsed_ms": elapsed,
             "answer": answer_text[:400],
+            "error_class": resp.get("error_class"),
+            "error_detail": resp.get("error_detail"),
             "citations": sorted(cited),
             "gold_top5": gold_hits_top5,
             "gold_top20": gold_hits_c20,
@@ -225,7 +239,7 @@ def main() -> int:
               "金标锚点 top-5/top-20 命中（R1=候选 20 都没有，R2=在 20 不在 5，其余 G* 待人工归因）。"]
     report_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"\n报告: {report_path}")
-    session.rollback()
+    session.commit()  # 运行记录入库（query_runs）
     session.close()
     return 0
 

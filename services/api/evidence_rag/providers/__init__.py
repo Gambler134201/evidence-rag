@@ -12,6 +12,11 @@ from typing import Protocol
 
 from ..config import get_settings
 
+# 直连 opener：绕过 Windows 系统代理（注册表）。实测教训——系统代理进程半死时
+# urllib/httpx 全部 10054，而 tailnet 内网地址本就不应交给外部代理；embedding
+# 的公网直连也已实测可行。如未来需经代理出网，加配置项而不是恢复全局跟随。
+_NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
 
 class GenerationClient(Protocol):
     def chat(self, system: str, user: str, *, max_tokens: int = 400, temperature: float = 0.0) -> str:
@@ -44,18 +49,24 @@ class OpenAICompatGeneration:
         req = urllib.request.Request(
             self.base_url + "/chat/completions",
             data=data,
-            headers={"Content-Type": "application/json"}
-            + ({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}),
+            headers={
+                "Content-Type": "application/json",
+                **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}),
+            },
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with _NO_PROXY_OPENER.open(req, timeout=self.timeout) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             raise RuntimeError(f"generation_http_{exc.code}: {exc.read().decode('utf-8', 'replace')[:200]}") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(f"generation_unreachable: {exc.reason}") from exc
         self.last_usage = body.get("usage")
-        return body["choices"][0]["message"]["content"]
+        message = body["choices"][0]["message"]
+        # 思考型模型（qwen3 系列）：content 可能为 None 而 reasoning_content 有值；
+        # 把 reasoning 一并返回，由调用方做宽容 JSON 提取。max_tokens 需覆盖
+        # reasoning + 正文（实测 400 会被思考过程吃光导致 JSON 截断）。
+        return message.get("content") or message.get("reasoning_content") or ""
 
 
 class OpenAICompatEmbedding:
@@ -73,11 +84,13 @@ class OpenAICompatEmbedding:
         req = urllib.request.Request(
             self.base_url + "/embeddings",
             data=json.dumps({"model": self.model, "input": texts}).encode("utf-8"),
-            headers={"Content-Type": "application/json"}
-            + ({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}),
+            headers={
+                "Content-Type": "application/json",
+                **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}),
+            },
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with _NO_PROXY_OPENER.open(req, timeout=self.timeout) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             raise RuntimeError(f"embedding_http_{exc.code}: {exc.read().decode('utf-8', 'replace')[:200]}") from exc
