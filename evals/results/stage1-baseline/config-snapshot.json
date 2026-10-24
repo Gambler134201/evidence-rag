@@ -1,7 +1,7 @@
 {
   "date": "2026-10-24T12:06:10.375437+00:00",
   "generation": {
-    "base": "https://lfx.tail977821.ts.net/v1",
+    "base": "（本地 tailnet 端点，见 .env；不入库）",
     "model": "qwen3.8-flash-next-iq3_xxs"
   },
   "embedding": {
