@@ -2,17 +2,17 @@
 
 日期：2026-10-21。范围：5 份自行合成的 Markdown 文档；没有真实客户资料、产品模型调用或效果实测。
 
-这批文档用于本项目本地开发与演示，均标记 `synthetic: true`。文档元数据的使用范围为“仅作本项目合成演示；对外发布许可待确认”，未为整个仓库增加许可证，也不声称取得真实客户授权。目录名 `public-docs` 表示计划中的公开示例位置，不代表已获准对外发布。
+这批文档用于本项目本地开发与演示，均标记 `synthetic: true`。文档元数据的使用范围为“仅作本项目合成演示；对外发布许可待确认”，未为整个仓库增加许可证，也不声称取得真实客户授权。目录原名 `public-docs`，2026-10-24 改名为 `synthetic-docs`（采纳第三方评审缺口 7 的建议，从目录名上消除“已可公开”的歧义）；改名不代表已获准对外发布。
 
 ## 1. 语料清单与身份
 
 | 文件 | 知识库 / 逻辑文档 | 不可变版本标识 | 当前状态与用途 |
 |---|---|---|---|
-| [A 交付规则 v1](../examples/public-docs/kb-a/delivery-rules-v1.md) | `kb-a / a-delivery-rules` | `a-delivery-rules-v1` | 历史；2026-09-01 起至 10-01 前的演示规则；保留 5 工作日验收、提醒后 3 工作日的旧期限 |
-| [A 交付规则 v2](../examples/public-docs/kb-a/delivery-rules-v2.md) | `kb-a / a-delivery-rules` | `a-delivery-rules-v2` | 当前；2026-10-01 起；3 工作日验收、提醒后 2 工作日；替代 v1 作为默认当前版本 |
-| [A 验收 FAQ](../examples/public-docs/kb-a/acceptance-faq.md) | `kb-a / a-acceptance-faq` | `a-acceptance-faq-v1` | 当前；2026-10-01 起；解释 v2 并保留干扰指令附录 |
-| [A 整改手册](../examples/public-docs/kb-a/rectification-manual.md) | `kb-a / a-rectification-manual` | `a-rectification-manual-v1` | 当前；2026-10-01 起；提供再次提交与人工协调材料 |
-| [B 同名交付规则](../examples/public-docs/kb-b/delivery-rules-v1.md) | `kb-b / b-delivery-rules` | `b-delivery-rules-v1` | 当前；2026-10-01 起；7 自然日验收，逾期直接登记本团队人工工单 |
+| [A 交付规则 v1](../examples/synthetic-docs/kb-a/delivery-rules-v1.md) | `kb-a / a-delivery-rules` | `a-delivery-rules-v1` | 历史；2026-09-01 起至 10-01 前的演示规则；保留 5 工作日验收、提醒后 3 工作日的旧期限 |
+| [A 交付规则 v2](../examples/synthetic-docs/kb-a/delivery-rules-v2.md) | `kb-a / a-delivery-rules` | `a-delivery-rules-v2` | 当前；2026-10-01 起；3 工作日验收、提醒后 2 工作日；替代 v1 作为默认当前版本 |
+| [A 验收 FAQ](../examples/synthetic-docs/kb-a/acceptance-faq.md) | `kb-a / a-acceptance-faq` | `a-acceptance-faq-v1` | 当前；2026-10-01 起；解释 v2 并保留干扰指令附录 |
+| [A 整改手册](../examples/synthetic-docs/kb-a/rectification-manual.md) | `kb-a / a-rectification-manual` | `a-rectification-manual-v1` | 当前；2026-10-01 起；提供再次提交与人工协调材料 |
+| [B 同名交付规则](../examples/synthetic-docs/kb-b/delivery-rules-v1.md) | `kb-b / b-delivery-rules` | `b-delivery-rules-v1` | 当前；2026-10-01 起；7 自然日验收，逾期直接登记本团队人工工单 |
 
 共同元数据字段：`knowledge_base_id`、`document_id`、`version_id`、`title`、`version`、`effective_at`、`source`、`usage`、`synthetic`；另用 `status` 和新旧版本的 `supersedes/superseded_by` 表达样本关系。
 
