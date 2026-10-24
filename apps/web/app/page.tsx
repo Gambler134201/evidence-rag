@@ -45,6 +45,30 @@ export default function Home() {
   const [resp, setResp] = useState<QueryResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needLogin, setNeedLogin] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginMsg, setLoginMsg] = useState<string | null>(null);
+
+  async function login() {
+    setLoginMsg(null);
+    try {
+      const r = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password }),
+      });
+      if (r.ok) {
+        setNeedLogin(false);
+        setLoginMsg(null);
+      } else {
+        setLoginMsg(`登录失败：${(await r.json()).detail ?? r.status}`);
+      }
+    } catch (e) {
+      setLoginMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   async function ask() {
     if (!question.trim() || busy) return;
@@ -55,8 +79,13 @@ export default function Home() {
       const r = await fetch(`${API_BASE}/knowledge-bases/${KB_ID}/queries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, top_k: 5, local_user_id: 1 }),
+        credentials: "include",
+        body: JSON.stringify({ question, top_k: 5 }),
       });
+      if (r.status === 401) {
+        setNeedLogin(true);
+        return;
+      }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setResp(await r.json());
     } catch (e) {
@@ -75,11 +104,22 @@ export default function Home() {
         <p className="tagline">回答基于当前有效文档，每个结论都可以点开原文核对。</p>
       </header>
 
+      {needLogin && (
+        <section className="login">
+          <p>需要登录（本地演示账号，见 docs/worklog 创建说明）：</p>
+          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="用户名" />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                 placeholder="密码" onKeyDown={(e) => e.key === "Enter" && login()} />
+          <button onClick={login}>登录</button>
+          {loginMsg && <p className="badge err">{loginMsg}</p>}
+        </section>
+      )}
+
       <section className="ask">
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="例如：A 团队验收期是几个工作日？"
+          placeholder="例如：A 团队验收期是几天？"
           rows={2}
         />
         <button onClick={ask} disabled={busy || !question.trim()}>

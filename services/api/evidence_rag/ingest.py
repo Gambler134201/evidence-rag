@@ -249,12 +249,20 @@ def ingest_version(
     }
 
 
-def publish_build(session: Session, *, document_id: int, version_id: int, build_id: int) -> None:
-    """发布指针切换（阶段 1 竖切片用）。
+def publish_build(
+    session: Session,
+    *,
+    document_id: int,
+    version_id: int,
+    build_id: int,
+    expected_old_version_id: int | None = None,
+) -> None:
+    """发布指针切换。
 
     单条 UPDATE 同时写两个指针，数据库层保证半指针不可出现（ck_documents_
-    active_pointer_pair）与归属错配不可出现（组合外键）。预期旧指针检查、
-    失败构建拦截的完整原子发布流程在 S2-T03 实现——本函数不假装已完成它。
+    active_pointer_pair）与归属错配不可出现（组合外键）。expected_old_version_id
+    提供时执行"预期旧指针"检查：当前指针与预期不符说明并发发布已发生，本任务
+    不得覆盖较新发布（实施方案 §4-2；backlog S2-T03 条件）。
     """
     build = session.get(IndexBuild, build_id)
     if build is None or build.version_id != version_id:
@@ -266,6 +274,16 @@ def publish_build(session: Session, *, document_id: int, version_id: int, build_
         raise ValueError("version 不属于该 document")
     if version.status != "ready":
         raise ValueError("版本未就绪，不能发布")
+    current = session.get(Document, document_id)
+    if current is None:
+        raise ValueError("document 不存在")
+    # 严格预期指针：None 表示"预期未发布"。并发任务即使拿着发布前的旧状态
+    # （None）提交，也会在这里被拒绝，过时任务不能覆盖较新发布（实施方案 §4-2）。
+    if current.active_version_id != expected_old_version_id:
+        raise ValueError(
+            "并发发布冲突：预期旧指针 %s，实际 %s"
+            % (expected_old_version_id, current.active_version_id)
+        )
     from sqlalchemy import update
 
     session.execute(

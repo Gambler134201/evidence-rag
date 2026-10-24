@@ -62,3 +62,11 @@ body {
   margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--line);
   font-size: 13px; color: #8a9896;
 }
+
+.login {
+  margin-top: 18px; padding: 14px; background: #fff;
+  border: 1px solid var(--line); border-radius: 10px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+}
+.login input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.login button { padding: 8px 20px; border: 0; border-radius: 6px; background: var(--teal); color: #fff; cursor: pointer; }

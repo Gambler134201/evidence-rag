@@ -1,41 +1,52 @@
-"""FastAPI 应用工厂（S1-T01 骨架 → S1-T06 挂载问答路由）。
+"""FastAPI 路由（S1 链路 + S2-T01/T02/T04 认证与授权）。
 
-阶段 1 边界：问答路由无认证（local_user_id 仅本地竖切片用），S2-T01/02 接入
-登录与服务端授权后替换；在此之前页面只允许本地合成数据（backlog S1-T08 条件 3）。
+401/403/404 口径见 lifecycle.py 模块注释。上传/发布当前合并为一步
+（本地切片自动发布，实施方案 §5 允许），分步确认在管理页任务中拆开。
 """
 from __future__ import annotations
 
 import uuid
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from . import auth, lifecycle
 from .db import engine, get_session
-from .models import QueryRun
+from .ingest import ingest_version, publish_build
+from .models import Document, QueryRun
 from .providers import get_clients
 from .rag import answer_question
+
+
+class LoginIn(BaseModel):
+    username: str
+    password: str
 
 
 class QueryIn(BaseModel):
     question: str
     top_k: int = 5
-    # 阶段 1 本地竖切片的临时身份；不是认证，不得对外部署。
-    local_user_id: int = 1
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="evidence-rag API", version="0.1.0")
+    app = FastAPI(title="evidence-rag API", version="0.2.0")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000"],  # 本地开发前端；公开部署另行收紧
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.get("/healthz", tags=["ops"])
     def healthz() -> dict[str, str]:
-        # 存活探针：不依赖数据库，进程活着即返回。
         return {"status": "ok"}
 
     @app.get("/readyz", tags=["ops"])
     def readyz() -> dict[str, str]:
-        # 就绪探针：数据库必须可查询，失败显式 503（fail-loud，不静默装健康）。
         try:
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
@@ -43,40 +54,126 @@ def create_app() -> FastAPI:
             return {"status": "db_unreachable", "detail": str(exc)[:200]}
         return {"status": "ready"}
 
+    # ── 认证（S2-T01）─────────────────────────────────────────────
+    @app.post("/auth/login", tags=["auth"])
+    def login(body: LoginIn, response: Response, session: Session = Depends(get_session)) -> dict:
+        user = auth.login(session, body.username, body.password, response)
+        session.commit()
+        return {"user_id": user.id, "username": user.username, "display_name": user.display_name}
+
+    @app.post("/auth/logout", tags=["auth"])
+    def logout(
+        request: Request,
+        response: Response,
+        session: Session = Depends(get_session),
+        user=Depends(auth.get_current_user),
+    ) -> dict:
+        auth.logout(session, request.state.session_id)
+        response.delete_cookie(auth.SESSION_COOKIE, path="/")
+        session.commit()
+        return {"status": "logged_out"}
+
+    @app.get("/auth/me", tags=["auth"])
+    def me(user=Depends(auth.get_current_user)) -> dict:
+        return {"user_id": user.id, "username": user.username, "display_name": user.display_name}
+
+    # ── 问答（S1 链路 + S2-T02 授权）──────────────────────────────
     @app.post("/knowledge-bases/{kb_id}/queries", tags=["qa"])
-    def query_kb(kb_id: int, body: QueryIn, session: Session = Depends(get_session)) -> dict:
-        # 真实/mock 客户端由 ENABLE_REAL_MODEL_CALLS 决定（fail-closed）。
+    def query_kb(
+        kb_id: int,
+        body: QueryIn,
+        session: Session = Depends(get_session),
+        user=Depends(auth.get_current_user),
+    ) -> dict:
+        lifecycle.require_kb_member(session, user.id, kb_id)
         generation, embedder = get_clients()
-        return answer_question(
-            session,
-            kb_id=kb_id,
-            user_id=body.local_user_id,
-            question=body.question,
-            generation=generation,
-            embedder=embedder,
-            top_k=body.top_k,
+        result = answer_question(
+            session, kb_id=kb_id, user_id=user.id, question=body.question,
+            generation=generation, embedder=embedder, top_k=body.top_k,
         )
+        session.commit()
+        return result
 
     @app.get("/query-runs/{run_id}", tags=["qa"])
-    def get_run(run_id: uuid.UUID, session: Session = Depends(get_session)) -> dict:
-        run = session.get(QueryRun, run_id)
-        if run is None:
-            # 404 口径：不存在与不可见不区分（无权限对象同样 404，S2-T02 生效）。
-            raise HTTPException(status_code=404, detail="not found")
+    def get_run(
+        run_id: uuid.UUID,
+        session: Session = Depends(get_session),
+        user=Depends(auth.get_current_user),
+    ) -> dict:
+        run = lifecycle.require_run_access(session, user.id, run_id)
+        session.commit()
         return {
-            "run_id": str(run.id),
-            "kb_id": run.kb_id,
-            "question": run.question,
-            "status": run.status,
-            "segments": run.answer_segments,
-            "error_class": run.error_class,
-            "retrieval_ms": run.retrieval_ms,
-            "generation_ms": run.generation_ms,
-            "total_ms": run.total_ms,
-            "prompt_tokens": run.prompt_tokens,
-            "completion_tokens": run.completion_tokens,
+            "run_id": str(run.id), "kb_id": run.kb_id, "question": run.question,
+            "status": run.status, "segments": run.answer_segments,
+            "error_class": run.error_class, "retrieval_ms": run.retrieval_ms,
+            "generation_ms": run.generation_ms, "total_ms": run.total_ms,
+            "prompt_tokens": run.prompt_tokens, "completion_tokens": run.completion_tokens,
             "cost_note": run.cost_note,
         }
+
+    @app.get("/chunks/{chunk_id}", tags=["qa"])
+    def get_chunk(
+        chunk_id: int,
+        session: Session = Depends(get_session),
+        user=Depends(auth.get_current_user),
+    ) -> dict:
+        chunk = lifecycle.require_chunk_access(session, user.id, chunk_id)
+        session.commit()
+        return {
+            "chunk_id": chunk.id, "version_id": chunk.version_id,
+            "locator": chunk.locator, "content": chunk.content,
+        }
+
+    # ── 管理（S2-T02/T04：admin 角色）────────────────────────────
+    @app.post("/knowledge-bases/{kb_id}/documents", tags=["admin"])
+    def upload_document(
+        kb_id: int,
+        file: UploadFile = File(...),
+        auto_publish: bool = Form(True),
+        session: Session = Depends(get_session),
+        user=Depends(auth.get_current_user),
+    ) -> dict:
+        lifecycle.require_kb_admin(session, user.id, kb_id)
+        data = file.file.read()
+        filename = file.filename or "upload.txt"
+        title = filename.rsplit(".", 1)[0]
+        doc = session.execute(
+            select(Document).where(Document.kb_id == kb_id, Document.title == title)
+        ).scalar_one_or_none()
+        if doc is None:
+            doc = Document(kb_id=kb_id, title=title)
+            session.add(doc)
+            session.flush()
+        generation, embedder = get_clients()
+        result = ingest_version(
+            session, kb_id=kb_id, document_id=doc.id,
+            filename=filename, data=data, embedder=embedder,
+        )
+        # 复用构建说明已发布；失败版本必须持久化（失败可见）。
+        # 预期指针 = 发布前读到的状态，防并发任务覆盖较新发布。
+        if not result.get("failed") and auto_publish and not result["reused"]:
+            publish_build(session, document_id=doc.id,
+                          version_id=result["version_id"], build_id=result["build_id"],
+                          expected_old_version_id=doc.active_version_id)
+        session.commit()
+        return {"document_id": doc.id, **result}
+
+    @app.patch("/documents/{document_id}", tags=["admin"])
+    def patch_document(
+        document_id: int,
+        active: bool = Form(...),
+        session: Session = Depends(get_session),
+        user=Depends(auth.get_current_user),
+    ) -> dict:
+        # 管理操作按"该文档所属知识库的管理员"校验（先取文档再校验角色）。
+        doc = session.get(Document, document_id)
+        if doc is None:
+            raise HTTPException(status_code=404, detail="not found")
+        lifecycle.require_kb_admin(session, user.id, doc.kb_id)
+        lifecycle.set_document_active(session, document_id=document_id,
+                                      active=active, actor_user_id=user.id)
+        session.commit()
+        return {"document_id": document_id, "active": active}
 
     return app
 

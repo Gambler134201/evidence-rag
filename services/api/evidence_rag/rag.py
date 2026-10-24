@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .config import get_settings
 from .models import QueryRun, QueryRunEvidence
 from .providers import EmbeddingClient, GenerationClient
 from .retrieval import RetrievedChunk, capture_active_snapshot, search_similar_chunks

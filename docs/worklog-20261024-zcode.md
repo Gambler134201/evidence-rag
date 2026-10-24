@@ -209,3 +209,34 @@ cd /e/AIjob/gpt/rag
 - 后端测试 40 项全绿；语料 153 条款入库并发布（kb-a/b/c 三库）。
 - 基线：6/9 pass；P50 9.6s；3 条失败=2 个 G2 类（澄清缺失）+1 个口径待定，均为回流素材。
 - 待办：权限与认证（S2 全部）、管理页（S2-T06）、关键词检索（S3）、80 条主集冻结（依赖锚点复核）、`evals/gold-review.md`。
+
+---
+
+## 13. 同日第七轮：S2 权限与认证（T01/T02/T03/T04/T08）
+
+用户暂离，授权继续。结果：**68 项后端测试全绿**（40 原有 + 2 发布原子性 + 26 权限/生命周期断言），前端加登录后构建通过。
+
+### 13.1 交付
+
+- **S2-T01 认证**：PBKDF2-HMAC-SHA256（20 万迭代）密码哈希、服务端会话（HttpOnly + SameSite=Lax Cookie）、登录失败统一文案（防用户名枚举）、注销即吊销；401 覆盖所有受保护接口。
+- **S2-T02 授权过滤**：401/403/404 三分口径——未登录 401、对象不存在与不可见统一 404、成员但角色不足 403；查询/原文/运行记录全走成员过滤；外人查询时模型零调用（未授权文本不入上下文，测试断言）；运行记录仅本人可见。
+- **S2-T03 原子发布**：publish_build 增加"预期旧指针"严格校验（None = 预期未发布）——拿着发布前旧状态提交的过时任务会被拒绝，不能覆盖较新发布；失败构建不可发布。
+- **S2-T04 生命周期传播**：停用/恢复（恢复要求存在有效构建）、撤权；即时影响新查询、原文、运行记录；全部留审计（audit_events）。
+- **S2-T08 断言集**：26 项 AUTO 断言（超过 20 项门槛）——见 `test_permissions.py`，覆盖 401/403/404 口径、Cookie 属性、密码不落明文、防枚举一致性、越权猜测、撤权/停用即时传播、审计留痕、未授权文本不入模型上下文等。
+- 上传接口（admin）：同文件名=同逻辑文档新版本；复用构建不重复发布；失败版本持久化。
+
+### 13.2 过程教训
+
+- 三处跨测试污染（session 级测试库复用 + `LIMIT 1` 无 WHERE）让三个测试"单跑过、全量挂"——测试数据必须按本次夹具的范围取。
+- `rag.py` 缺 import（get_settings）由权限测试首次触发——新测试路径立即还旧债。
+- expected_old_version_id 的语义教训：`None = 跳过检查` 会让拿着发布前状态的过时任务覆盖新发布；收紧为 `None = 预期未发布`。
+
+### 13.3 本地体验步骤（更新）
+
+```bash
+# 0) 创建账号（一次性）：.venv/Scripts/python.exe -c 调 auth.hash_password 或见下
+#    scripts 尚未做，可用：cd services/api && ../../.venv/Scripts/python.exe -c
+#    "from evidence_rag.db import SessionLocal; from evidence_rag.models import User; from evidence_rag.auth import hash_password; s=SessionLocal(); s.add(User(username='demo', password_hash=hash_password('demo123'), display_name='演示')); s.commit()"
+# 1) 后端：ENABLE_REAL_MODEL_CALLS=1 .venv/Scripts/python.exe -m uvicorn evidence_rag.main:app --app-dir services/api --port 8000
+# 2) 前端：cd apps/web && npm run dev → http://localhost:3000 登录 demo/demo123
+```

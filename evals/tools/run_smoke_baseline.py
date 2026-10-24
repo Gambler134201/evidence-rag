@@ -105,7 +105,8 @@ def ingest_corpus(session, embedder) -> dict[str, dict]:
                     publish_target = (eff, r)
         if publish_target:
             _, r = publish_target
-            publish_build(session, document_id=doc.id, version_id=r["version_id"], build_id=r["build_id"])
+            publish_build(session, document_id=doc.id, version_id=r["version_id"],
+                          build_id=r["build_id"], expected_old_version_id=doc.active_version_id)
             print(f"  {kb_slug}/{_doc_id}: 发布 {r['version_id']}（{len(members)} 个版本）")
         else:
             print(f"  {kb_slug}/{_doc_id}: 无可发布版本！")

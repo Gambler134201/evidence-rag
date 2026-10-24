@@ -201,3 +201,78 @@ def test_embedding_dimension_locked(migrated_engine, base_ids):
             ),
             {"ver": base_ids["ver"]},
         )
+
+
+def test_publish_with_stale_expected_pointer_rejected(migrated_engine, base_ids):
+    """S2-T03：并发发布场景——预期旧指针与实际不符时拒绝覆盖较新发布。"""
+    import uuid as _uuid
+
+    from sqlalchemy.orm import sessionmaker
+
+    from evidence_rag.ingest import publish_build
+
+    tag = _uuid.uuid4().hex[:8]
+    pub = sessionmaker(bind=migrated_engine)()
+    with migrated_engine.begin() as conn:
+        ver_b = conn.execute(
+            text(
+                "INSERT INTO document_versions (document_id, version_id, version_no, "
+                "content_hash, storage_key, parser_version, effective_at, status) "
+                "VALUES (:doc, :vid, 2, 'h2', 'k2', 'p0', now(), 'ready') RETURNING id"
+            ),
+            {"doc": base_ids["doc"], "vid": f"v-{tag}-b"},
+        ).scalar_one()
+        build_b = conn.execute(
+            text(
+                "INSERT INTO index_builds (version_id, config_fingerprint, "
+                "embedding_model, embedding_dimension, status) "
+                "VALUES (:ver, 'fp-b', 'bge-m3', 1024, 'ready') RETURNING id"
+            ),
+            {"ver": ver_b},
+        ).scalar_one()
+    pub.execute(text("UPDATE index_builds SET status='ready' WHERE id=:i"),
+                {"i": base_ids["build"]})
+    pub.execute(text("UPDATE document_versions SET status='ready' WHERE id=:i"),
+                {"i": base_ids["ver"]})
+    pub.commit()
+    # 第一次发布成功（无预期指针 = 首次发布）。
+    publish_build(pub, document_id=base_ids["doc"],
+                  version_id=base_ids["ver"], build_id=base_ids["build"])
+    pub.commit()
+    # 并发任务拿着"预期的旧指针 = NULL"来了：实际已是 ver_a → 拒绝。
+    with pytest.raises(ValueError, match="并发发布冲突"):
+        publish_build(pub, document_id=base_ids["doc"],
+                      version_id=ver_b, build_id=build_b,
+                      expected_old_version_id=None)
+    # 预期指针正确时才放行。
+    publish_build(pub, document_id=base_ids["doc"],
+                  version_id=ver_b, build_id=build_b,
+                  expected_old_version_id=base_ids["ver"])
+    pub.rollback()
+    pub.close()
+
+
+def test_failed_build_publish_rejected(migrated_engine, base_ids):
+    """失败构建不发布（S2-T03 条件 3 的服务层断言）。"""
+    import uuid as _uuid
+
+    from sqlalchemy.orm import sessionmaker
+
+    from evidence_rag.ingest import publish_build
+
+    tag = _uuid.uuid4().hex[:8]
+    pub = sessionmaker(bind=migrated_engine)()
+    with migrated_engine.begin() as conn:
+        build_failed = conn.execute(
+            text(
+                "INSERT INTO index_builds (version_id, config_fingerprint, "
+                "embedding_model, embedding_dimension, status) "
+                "VALUES (:ver, 'fp-f', 'bge-m3', 1024, 'failed') RETURNING id"
+            ),
+            {"ver": base_ids["ver"]},
+        ).scalar_one()
+    with pytest.raises(ValueError, match="失败构建不发布"):
+        publish_build(pub, document_id=base_ids["doc"],
+                      version_id=base_ids["ver"], build_id=build_failed)
+    pub.rollback()
+    pub.close()
