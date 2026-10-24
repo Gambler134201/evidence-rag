@@ -85,9 +85,15 @@ def ingest_corpus(session, embedder) -> dict[str, dict]:
     for (kb_slug, _doc_id), members in sorted(groups.items()):
         kb_id = ensure_kb(session, kb_slug)
         title = members[0][0].get("doc_title") or members[0][0]["title"]
-        doc = Document(kb_id=kb_id, title=title)
-        session.add(doc)
-        session.flush()
+        # 同一逻辑文档复用已有 Document（按 kb+title 查找）：重复运行基线脚本
+        # 不再产生重复文档（预览时曾暴露 doc58/doc71 双胞胎）。
+        doc = session.execute(
+            select(Document).where(Document.kb_id == kb_id, Document.title == title)
+        ).scalar_one_or_none()
+        if doc is None:
+            doc = Document(kb_id=kb_id, title=title)
+            session.add(doc)
+            session.flush()
         publish_target = None
         for meta, path in members:
             r = ingest_version(
