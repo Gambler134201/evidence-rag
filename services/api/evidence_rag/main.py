@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import select, text
@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from . import auth, lifecycle
 from .db import engine, get_session
-from .worker import enqueue_ingest
+from .routes_kb import router as kb_router
 from .models import Document, QueryRun
 from .providers import get_clients
 from .rag import answer_question
@@ -33,6 +33,7 @@ class QueryIn(BaseModel):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="evidence-rag API", version="0.2.0")
+    app.include_router(kb_router)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3000"],  # 本地开发前端；公开部署另行收紧
@@ -124,39 +125,7 @@ def create_app() -> FastAPI:
             "locator": chunk.locator, "content": chunk.content,
         }
 
-    # ── 管理（S2-T02/T04：admin 角色）────────────────────────────
-    @app.post("/knowledge-bases/{kb_id}/documents", tags=["admin"])
-    def upload_document(
-        kb_id: int,
-        file: UploadFile = File(...),
-        auto_publish: bool = Form(True),
-        session: Session = Depends(get_session),
-        user=Depends(auth.get_current_user),
-    ) -> dict:
-        lifecycle.require_kb_admin(session, user.id, kb_id)
-        data = file.file.read()
-        filename = file.filename or "upload.txt"
-        title = filename.rsplit(".", 1)[0]
-        doc = session.execute(
-            select(Document).where(Document.kb_id == kb_id, Document.title == title)
-        ).scalar_one_or_none()
-        if doc is None:
-            doc = Document(kb_id=kb_id, title=title)
-            session.add(doc)
-            session.flush()
-        # S2-T05：上传 = 入队；处理由后台工作进程异步完成（租约/重试/幂等续跑）。
-        result = enqueue_ingest(
-            session, kb_id=kb_id, document_id=doc.id,
-            filename=filename, data=data, auto_publish=auto_publish,
-        )
-        # S2-T07：完全重复明确提示，不跨知识库泄露任何状态；同名不同内容
-        # 走新版本（test_27/28/29 覆盖）。近似去重不纳入本期。
-        if result.get("reused"):
-            result["duplicate_note"] = "内容与现有构建完全一致，已复用索引，未重复计费"
-        elif result.get("duplicate"):
-            result["duplicate_note"] = "相同内容的任务已在队列中，不会重复计费或建索引"
-        session.commit()
-        return {"document_id": doc.id, **result}
+    # ── 管理：上传/列表/详情/发布/重试 → routes_kb.py（APIRouter）
 
     @app.patch("/documents/{document_id}", tags=["admin"])
     def patch_document(
