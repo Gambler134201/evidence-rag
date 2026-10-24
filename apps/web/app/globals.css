@@ -1,72 +1,277 @@
+/* 知据 · evidence-rag 设计系统（阶段 2 视觉版）
+   品牌基调：青绿（teal）+ 冷灰背景；引用、版本、证据是主要视觉元素。 */
+
 :root {
-  --teal: #0e8074;
-  --teal-dark: #0a5c54;
-  --bg: #f6faf9;
-  --line: #d7e6e3;
-  --warn: #9a6700;
-  --err: #b3261e;
+  --teal-700: #0b5f56;
+  --teal-600: #0e8074;
+  --teal-500: #129487;
+  --teal-100: #d8eeeb;
+  --teal-50: #eaf5f3;
+  --ink: #172f2b;
+  --muted: #5b6f6b;
+  --faint: #8a9a97;
+  --line: #d9e6e3;
+  --line-soft: #e6efed;
+  --card: #ffffff;
+  --bg-top: #f2f8f7;
+  --bg-bottom: #eaf1f0;
+  --warn-bg: #fdf3d8;
+  --warn-fg: #8a5a00;
+  --err-bg: #fdeceb;
+  --err-fg: #b3261e;
+  --shadow-sm: 0 1px 2px rgba(23, 47, 43, 0.06);
+  --shadow-md: 0 2px 10px rgba(23, 47, 43, 0.07);
+  --radius: 14px;
+  --radius-sm: 9px;
 }
 
 * { box-sizing: border-box; }
 
+html, body { height: 100%; }
+
 body {
   margin: 0;
-  background: var(--bg);
-  color: #1c2b29;
-  font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  color: var(--ink);
+  font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+  background:
+    radial-gradient(1100px 380px at 15% -60px, rgba(14, 128, 116, 0.10), transparent 70%),
+    linear-gradient(180deg, var(--bg-top), var(--bg-bottom) 420px);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
-.page { max-width: 760px; margin: 0 auto; padding: 32px 20px 60px; }
+.page { max-width: 880px; margin: 0 auto; padding: 36px 22px 72px; }
 
-.header h1 { margin: 0; color: var(--teal-dark); font-size: 26px; }
-.header .en { color: var(--teal); font-size: 16px; font-weight: 400; }
-.tagline { color: #5a6b68; margin: 6px 0 0; }
+/* ── 页头 ─────────────────────────────────────────────── */
+.header { margin-bottom: 22px; }
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--teal-700);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.header h1::before {
+  content: "";
+  width: 12px; height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--teal-500), var(--teal-700));
+  align-self: center;
+  box-shadow: 0 2px 6px rgba(14, 128, 116, 0.35);
+}
+.header .en { color: var(--teal-500); font-size: 15px; font-weight: 500; letter-spacing: 0.3px; }
+.tagline { color: var(--muted); margin: 6px 0 0; }
+.tagline a { color: var(--teal-600); text-decoration: none; font-weight: 600; }
+.tagline a:hover { text-decoration: underline; }
 
-.ask { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
-.ask textarea {
-  padding: 12px; border: 1px solid var(--line); border-radius: 8px;
-  font: inherit; resize: vertical; background: #fff;
+/* ── 卡片容器 ─────────────────────────────────────────── */
+.ask, .answer, .login {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 22px;
 }
-.ask button {
-  align-self: flex-start; padding: 10px 28px; border: 0; border-radius: 8px;
-  background: var(--teal); color: #fff; font: inherit; cursor: pointer;
-}
-.ask button:disabled { opacity: 0.5; cursor: default; }
+.ask { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
 
-.answer {
-  margin-top: 20px; background: #fff; border: 1px solid var(--line);
-  border-radius: 10px; padding: 18px;
+/* ── 输入与按钮 ───────────────────────────────────────── */
+textarea, .ask input[type="text"], .login input, .ask select {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  color: var(--ink);
+  background: #fbfdfc;
+  resize: vertical;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.answer-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+textarea:focus, .ask input:focus, .login input:focus, .ask select:focus {
+  outline: none;
+  border-color: var(--teal-500);
+  box-shadow: 0 0 0 3px rgba(18, 148, 135, 0.16);
+  background: #fff;
+}
+
+button {
+  padding: 10px 26px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, var(--teal-500), var(--teal-600));
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.08s, box-shadow 0.15s, filter 0.15s;
+}
+button:hover:not(:disabled) { filter: brightness(1.05); box-shadow: var(--shadow-md); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+
+/* 次级/小号操作按钮（管理页） */
+.op {
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  color: var(--teal-700);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: none;
+}
+.op:hover { border-color: var(--teal-500); background: var(--teal-50); }
+
+/* ── 状态徽章 ─────────────────────────────────────────── */
 .badge {
-  display: inline-block; padding: 3px 10px; border-radius: 999px;
-  font-size: 13px; background: #e3efed; color: var(--teal-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--teal-100);
+  color: var(--teal-700);
 }
-.badge.warn { background: #fdf3d8; color: var(--warn); }
-.badge.err { background: #fdeceb; color: var(--err); }
-.err-detail { font-size: 12px; color: var(--err); }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.warn { background: var(--warn-bg); color: var(--warn-fg); }
+.badge.err { background: var(--err-bg); color: var(--err-fg); }
+.badge.ok { background: var(--teal-100); color: var(--teal-700); }
+.err-detail { font-size: 12px; color: var(--err-fg); }
 
-.segment { line-height: 1.8; margin: 8px 0; }
-.cite { color: var(--teal); font-weight: 600; cursor: pointer; }
+/* ── 回答区 ───────────────────────────────────────────── */
+.answer { margin-top: 18px; }
+.answer h2 {
+  font-size: 15px;
+  color: var(--teal-700);
+  margin: 0 0 10px;
+  letter-spacing: 0.4px;
+}
+.answer-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 
-.clarify { color: var(--warn); }
+.segment { line-height: 1.9; margin: 10px 0; font-size: 15.5px; }
 
-.evidence { margin-top: 14px; }
-.evidence summary { cursor: pointer; color: var(--teal-dark); font-weight: 600; }
-.evidence ol { margin: 10px 0 0; padding-left: 22px; }
-.evidence li { line-height: 1.7; font-size: 14px; color: #40514e; }
+.cite {
+  display: inline-block;
+  padding: 0 8px;
+  margin: 0 2px;
+  border-radius: 999px;
+  background: var(--teal-600);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  cursor: pointer;
+  vertical-align: 2px;
+}
+.cite:hover { background: var(--teal-700); }
 
-.runid { margin-top: 14px; font-size: 12px; color: #8a9896; }
+.clarify {
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  background: var(--warn-bg);
+  border-radius: var(--radius-sm);
+  color: var(--warn-fg);
+}
+.clarify li { margin: 4px 0; }
+
+/* 证据列表：左侧强调线 + 相对匹配度条 */
+.evidence { margin-top: 16px; }
+.evidence summary {
+  cursor: pointer;
+  color: var(--teal-700);
+  font-weight: 600;
+  user-select: none;
+}
+.evidence ol { list-style: none; margin: 12px 0 0; padding: 0; }
+.evidence li {
+  padding: 10px 14px;
+  margin: 8px 0;
+  border-left: 3px solid var(--teal-500);
+  background: var(--teal-50);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.evidence li b { color: var(--teal-700); }
+.sim {
+  margin-top: 6px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  overflow: hidden;
+  max-width: 320px;
+}
+.sim > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--teal-500), var(--teal-700));
+}
+.sim-num { color: var(--faint); font-size: 12px; }
+
+.runid { margin-top: 14px; font-size: 12px; color: var(--faint); font-family: Consolas, monospace; }
+
+/* 加载骨架 */
+.answer.loading { display: flex; align-items: center; gap: 12px; color: var(--muted); }
+.spinner {
+  width: 18px; height: 18px;
+  border: 3px solid var(--teal-100);
+  border-top-color: var(--teal-600);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── 登录 ─────────────────────────────────────────────── */
+.login { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.login p { width: 100%; margin: 0; color: var(--muted); }
+.login input { flex: 1 1 160px; }
+
+/* ── 管理页表格 ───────────────────────────────────────── */
+.ask select { min-width: 200px; }
+.ask label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
+.ask input[type="checkbox"] { accent-color: var(--teal-600); width: 16px; height: 16px; }
+
+.docs { width: 100%; border-collapse: collapse; font-size: 14px; }
+.docs th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--faint);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  border-bottom: 2px solid var(--line);
+  white-space: nowrap;
+}
+.docs td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+}
+.docs tbody tr { transition: background 0.12s; }
+.docs tbody tr:hover { background: var(--teal-50); }
+.docs a { color: var(--teal-700); font-weight: 600; text-decoration: none; }
+.docs a:hover { text-decoration: underline; }
+.docs .ops { display: flex; flex-wrap: wrap; gap: 6px; max-width: 240px; }
+
+/* ── 详情页 ───────────────────────────────────────────── */
+.answer .chunks { margin: 0; padding-left: 20px; }
+.answer .chunks li { margin: 8px 0; line-height: 1.7; }
 
 .footer {
-  margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--line);
-  font-size: 13px; color: #8a9896;
+  margin-top: 44px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--faint);
 }
 
-.login {
-  margin-top: 18px; padding: 14px; background: #fff;
-  border: 1px solid var(--line); border-radius: 10px;
-  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-}
-.login input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font: inherit; }
-.login button { padding: 8px 20px; border: 0; border-radius: 6px; background: var(--teal); color: #fff; cursor: pointer; }
+/* 徽章不换行（窄列里“生效”曾竖排） */
+.badge { white-space: nowrap; }

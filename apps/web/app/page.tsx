@@ -129,6 +129,13 @@ export default function Home() {
         {error && <p className="badge err">请求失败：{error}</p>}
       </section>
 
+      {busy && (
+        <section className="answer loading">
+          <span className="spinner" />
+          正在检索与生成…（本地模型约 5～25 秒）
+        </section>
+      )}
+
       {resp && (
         <section className="answer">
           <div className="answer-head">
@@ -155,12 +162,22 @@ export default function Home() {
             <details className="evidence" open>
               <summary>证据（{resp.evidence.length}）</summary>
               <ol>
-                {resp.evidence.map((ev) => (
-                  <li key={ev.id}>
-                    <b>{ev.id}</b> 《{ev.document_title}》 · {ev.version_label} ·{" "}
-                    {locatorText(ev.locator)} · 相似度 {ev.score}
-                  </li>
-                ))}
+                {resp.evidence.map((ev) => {
+                  const maxScore = Math.max(...resp.evidence.map((x) => x.score), 1e-6);
+                  const pct = Math.max(4, Math.round((ev.score / maxScore) * 100));
+                  return (
+                    <li key={ev.id}>
+                      <div>
+                        <b>{ev.id}</b> 《{ev.document_title}》 · {ev.version_label} ·{" "}
+                        {locatorText(ev.locator)}
+                      </div>
+                      <div className="sim">
+                        <span style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="sim-num">相对匹配度 {pct}%</span>
+                    </li>
+                  );
+                })}
               </ol>
             </details>
           )}
