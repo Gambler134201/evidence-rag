@@ -177,3 +177,35 @@ cd /e/AIjob/gpt/rag
 - Embedding 写入（S1-T05）未实现，`embed_hook` 仅用于去重计数验证，不伪造向量；HTTP 路由随 S1-T06 一起挂载（已记录偏离）。
 - token 精确校验、PDF 跨页表格重组（v1 以页级 locator 保持关联，行内重组后置）、`apps/web`（S1-T08）未做。
 - 冒烟题 6 个锚点的作者复核仍未完成（唯一等待作者的项）。
+
+---
+
+## 12. 同日第六轮："一口气"冲刺——S1 全链路 + 真实基线 + S0 文档收尾
+
+用户指示：一口气做完，需要用户的事项最后统一交接。结果：**S1-T05~T12 全部实现，40 项后端测试全绿，真实模型冒烟基线跑通（6/9 pass）**，S0-T02/S0-T07 文档补齐。
+
+### 12.1 交付
+
+| 任务 | 内容 |
+|---|---|
+| S1-T05 | 可插拔模型客户端（mock bigram 向量 / OpenAI 兼容真实客户端，`ENABLE_REAL_MODEL_CALLS` fail-closed）；AllowedActiveChunks 检索（仅发布版本+未停用+库内时钟生效）；pgvector 余弦排序；候选 20/最终 5 两级切分供 R1/R2 归因 |
+| S1-T06/T07 | 契约提示词；宽容 JSON 提取（围栏/平衡对象/None 容错）；编造引用整体拦截（citation_invalid）；零证据必拒答零引用；knowledge_changed 复查；拒答阈值留配置位待校准 |
+| S1-T08 | Next.js 15 手写最小问答页（六态徽章/证据列表/澄清列表），生产构建通过；仅限本地 |
+| S1-T09/T11 | query_runs 落库（分段耗时/token/错误分类/segments，迁移 0002）；mock 与真实开关策略成型 |
+| S1-T12 | 子代理产出 12 份新文档，**总条款 153（唯一性经独立机检复核）**，干扰占比 41–60% 双口径；同逻辑文档按 document_id 分组、仅发布最新可用版本 |
+| S1-T10 | **真实基线**：bge-m3 真实 Embedding + 本地 qwen3.8 真实生成，17 份语料入库 10s，9 题 6 pass；报告+raw+config 快照入库，全程标注"基线观察，非准确率结论" |
+| S0-T02/S0-T07 | `docs/PRD.md`、`docs/scope-decisions.md`、`docs/evaluation-plan.md` v0.1 |
+
+### 12.2 排障记录（都值得讲）
+
+1. **Windows 系统代理幽灵**：urllib/httpx 全部 10054 而 curl 正常——注册表代理指向 `127.0.0.1:5780`（VPN 客户端残留，进程半死）。修复：模型客户端统一直连 opener（tailnet 流量本不该走外部代理）。裸 socket TLS 对照法定位。
+2. **思考型模型 token 预算**：qwen3.8 的 reasoning 会吃光 max_tokens=400，content=null 或 JSON 截断。修复：预算配置化（默认 8192，模型支持 32k 思考/256k 上下文——用户确认）、content 缺失回退 reasoning、平衡 JSON 提取。
+3. **库内时钟 vs Python 时钟**：effective_at 用 Python now() 比 SQL now()（事务起点）晚毫秒级，被自己的 `effective_at <= now()` 判定滤掉。修复：生效时间由数据库时钟生成。
+4. **版本分组发布**：基线初版把每个文件当独立文档发布，新旧版本会同库可检——改为按 document_id 分组、仅发布最新非 draft 版本。
+5. **smk-03 的 R1 是机械误判**：历史版本未发布是设计行为，金标 v1 锚点本就不该出现在检索集；真实归因是 G2（应澄清未澄清）——归因自动化必须叠加语义判断。
+
+### 12.3 现状
+
+- 后端测试 40 项全绿；语料 153 条款入库并发布（kb-a/b/c 三库）。
+- 基线：6/9 pass；P50 9.6s；3 条失败=2 个 G2 类（澄清缺失）+1 个口径待定，均为回流素材。
+- 待办：权限与认证（S2 全部）、管理页（S2-T06）、关键词检索（S3）、80 条主集冻结（依赖锚点复核）、`evals/gold-review.md`。
