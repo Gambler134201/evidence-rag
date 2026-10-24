@@ -80,7 +80,7 @@ export default function KbPage() {
   }
 
   async function act(url: string, method: string, form?: FormData) {
-    const r = await fetch(url, { method, credentials: "include", body: form });
+    const r = await fetch(`${API_BASE}${url}`, { method, credentials: "include", body: form });
     if (!r.ok) setMsg(`${method} 失败：${(await r.json()).detail ?? r.status}`);
     if (kbId) await load(kbId);
   }
