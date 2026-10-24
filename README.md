@@ -61,6 +61,6 @@ ENABLE_REAL_MODEL_CALLS=1 .venv/Scripts/python.exe evals/tools/run_smoke_baselin
 
 本项目用自建多模型工作台开发：执行模型产出实现与草稿，主脑按可判定验收条件独立验收，不采信执行模型自报的"已完成"；评测先行，规划指标与实测结果分开记录。AI 产出的评审、夹具等材料在 [PROVENANCE.md](PROVENANCE.md) 登记来源与哈希；采纳的结论改写进自己的文档，未采纳的保留标注或删除。
 
-## 边界
+## 许可与边界
 
-未加许可证：对外表述为"公开可访问的演示仓库"，不称"开源"。语料全部为合成演示数据（`synthetic: true`），不含真实客户资料；权限体系完整前不接入私有资料。
+以 [MIT License](LICENSE) 开源。语料全部为合成演示数据（`synthetic: true`），不含真实客户资料；模型端点与密钥均在 `.env`（不入库）。
