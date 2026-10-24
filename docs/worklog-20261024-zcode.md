@@ -308,3 +308,12 @@ cd /e/AIjob/gpt/rag
 - **M5 整理**：README 重写（真实"已实现/未实现"清单 + 七步快速开始 + 文档索引）；`scripts/create_local_user.py`（密码 ≥8 位校验，已实测）；`docs/demo-script.md`（2~3 分钟演示脚本）；`docs/case-study.md`（1 条产品取舍 + 3 个失败案例 + 3 个评测发现 + 诚实待办清单）。
 - **当前全貌**：后端 93 项测试全绿；前端 3 路由构建通过；评测体系（冒烟转正 + A/B + 优化迭代 + 80 条草稿）就位。
 - **项目剩余**（截至本轮）：80 条草稿作者复核 → 冻结 40/40 → 正式 A/B（n≥3）；S2-T10 独立验收；M4 用户验证；S5-T05 简历句式填数。详见 backlog 各任务状态。
+
+---
+
+## 19. 开源发布：GitHub 公开仓库
+
+- 仓库：https://github.com/Gambler134201/evidence-rag（public，MIT License）。
+- 发布前审计：跟踪树无 .env/密钥；一处 config 快照含 tailnet 端点域名（外部不可解析、无凭据）——当前树已脱敏，生成器不再记录端点；**git 历史中该快照的旧版本（82f6b0c 引入）仍含此域名**，风险评级低（无法从外部访问），如介意可用 git filter-repo 重写历史（会变更全部提交哈希，worklog 中的哈希引用需同步更新）。
+- 措辞落档：原"不说开源"（评审缺口 7）的考量，因作者决定补 MIT License 开源而解除，scope-decisions 已更新。
+- 决策记录：MIT 选择由作者指令"开源到 github"直接授权；版权人 Gambler134201。
