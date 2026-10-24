@@ -123,5 +123,5 @@ cd /e/AIjob/gpt/rag
 ### 9.2 进行中 / 待办
 
 - **Docker Desktop 4.96.3 已安装**（winget，2026-10-24，用户确认 UAC）；**WSL2 组件已启用但需重启生效**（`wsl --install --no-distribution` 提权执行，返回“重启前更改不生效”；本机为 Win11 家庭版，Docker 只能用 WSL2 后端）。**重启后剩余步骤**：① 双击 Docker Desktop，首次启动接受服务条款；② 引擎就绪后在项目目录 `docker compose up -d`（读 `.env`，`POSTGRES_PASSWORD` 已预置本机占位值）；③ 冒烟：`docker exec evidence-rag-db psql -U evidence_rag -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname='vector';"`。这些步骤未执行——截至本轮结束机器尚未重启。
-- Embedding 选型：已定（用户选定云端方案）——硅基流动 SiliconFlow 标准版 `BAAI/bge-m3`（价格页当前标免费；Pro 变体收费不采用），1024 维、8192 token 上限、不支持 `dimensions` 参数。`.env` 三个变量已填，`EMBEDDING_API_KEY` 待用户在 https://cloud.siliconflow.cn 创建；探测脚本 `evals/tools/probe_embedding.py` 已就位，密钥填入后运行即补 S0-T06 Embedding 半项并解锁 S1-T05。本地部署 bge-m3（GGUF Q8 约 600 MB）保留为后备。
+- Embedding 选型与验证：已定并实测通过（2026-10-24 第二轮）——硅基流动标准版 `BAAI/bge-m3`（免费档，1024 维、8192 token 上限、不支持 `dimensions` 参数）。用户提供的既有 API 密钥实测：最小请求 HTTP 200 / 595 ms / 维度 1024 硬校验一致；中文语义抽查（3 句批量）相关对余弦 0.8115 vs 无关对 0.3551，区分度正常。S0-T06 两半项齐备，转 `待验收`；本地部署 bge-m3（GGUF Q8 约 600 MB）保留为后备。注意：该密钥曾以明文出现在用户与助手的聊天记录中，如在意可在控制台轮换后替换 `.env` 对应行。
 - 下一步开发（离线可做）：S1-T01 骨架 → S1-T02 数据模型迁移；S1-T12 语料扩充；S1-T13 夹具断言。

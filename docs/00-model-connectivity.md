@@ -13,13 +13,20 @@
 | 费用 | 本地自有硬件，无 API 账单 |
 | 结论 | 生成模型最小连通通过；M1 可用该端点接入真实链路，效果待 10 条样例基线再评估 |
 
-## 2. Embedding：未通过（接口不存在）
+## 2. Embedding：已验证（2026-10-24）
 
-- `POST /v1/embeddings` 返回 HTTP 404 `{"error": {"message": "not found"}}`：该端点不提供 Embedding 服务。
-- DeepSeek 官方 API 亦无 Embedding 接口（仅 chat/reasoner），用户提供的备用密钥不能解决 Embedding。
-- 影响与选项见 [model-and-cost.md](model-and-cost.md) 第 2 节：建议本地再部署 `BAAI/bge-m3`（或等效中文 Embedding 模型），或选用云端 Embedding API。选定前 S1-T05 真实向量写入保持阻塞，仅允许 mock。
+| 项 | 结果 |
+|---|---|
+| 提供方 / 模型 | 硅基流动 SiliconFlow，`BAAI/bge-m3`（免费标准版；用户提供既有 API 密钥，密钥只存本机 `.env`，不入库） |
+| 接口 | OpenAI 兼容 `https://api.siliconflow.cn/v1/embeddings` |
+| 请求 3（中文最小请求） | HTTP 200，耗时 595 ms；实测维度 **1024**（与 `.env` 声明一致，硬校验通过）；usage：prompt 15 / total 15 tokens。工具：`evals/tools/probe_embedding.py`（可复跑） |
+| 请求 4（中文语义抽查） | 一次批量 3 句（40 tokens）：内容相关的两句余弦相似度 0.8115，无关句 0.3551，区分度符合预期——中文语义检索可用 |
+| token 限制 | 提供方声明单条输入上限 8192 tokens（bge-m3）；未做上限实测，按规则不声称“已测出最大上下文” |
+| 费用 | 免费标准版，两笔调用费用记 0（记录日期 2026-10-24，usage 已留痕；若误用 Pro 变体为 ¥0.07/M，调用侧模型名固定为 `BAAI/bge-m3`） |
+| 结论 | **S0-T06 两半项均通过**（生成见第 1 节，Embedding 见本节）；真实向量写入（S1-T05）的模型侧阻塞解除。效果层面的评估仍以 10 条样例基线为准 |
 
 ## 3. 明确未执行
 
-- 未压测、未批量调用、未测上下文上限（256K 为服务端声称值）；未调用 DeepSeek；未修改用户本地推理服务；未把端点地址写入任何入库文件。
-- 本次最小连通不等于 RAG 效果验证，也不能替代 S0-T06 对 Embedding 的验证要求（该半项保持 `待配置`）。
+- 未压测、未批量调用、未测上下文上限（生成 256K、Embedding 8192 均为服务端/官方声称值）；未修改用户本地推理服务；未把端点地址与密钥写入任何入库文件。
+- 本地生成端点本身不提供 `/v1/embeddings`（2026-10-24 实测 404，已作为背景记录于 [model-and-cost.md](model-and-cost.md)）；Embedding 走硅基流动云端。
+- 最小连通不等于 RAG 效果验证；S0-T06 的两半项记录按门禁交由主脑/用户验收。

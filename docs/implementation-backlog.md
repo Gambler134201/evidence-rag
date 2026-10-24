@@ -98,7 +98,7 @@
 
 ### S0-T04 模型配置与真实费用边界方案
 - 依赖：S0-T02
-- 状态：`进行中`（2026-10-24 初版交付：`docs/model-and-cost.md`、`.env.example`、`docker-compose.yml`；生成模型已确认为用户本地部署并实测连通；Embedding 选型已定——硅基流动云端 `BAAI/bge-m3` 免费档，待用户创建 API 密钥后完成半项验证并回填费用记录）
+- 状态：`待验收`（2026-10-24 初版交付并补全费用记录：生成模型为用户本地自部署、费用记“自有硬件”；Embedding 为硅基流动 `BAAI/bge-m3` 免费标准版、费用记 0；交付 `docs/model-and-cost.md`、`.env.example`、`docker-compose.yml`）
 - 交付物：`docs/model-and-cost.md`、`.env.example`（仅变量名与注释，无值）
 - 验收条件：
   1. `FILE` 生成模型与 Embedding 模型分别列出来源、模型名（待确认则写“待定”）、上下文长度、向量维度、中文效果验证方式；明确“不能假定提供生成的供应商也提供 Embedding”。
@@ -120,7 +120,7 @@
 
 ### S0-T06 生成模型与 Embedding 的最小连通验证
 - 依赖：S0-T04 + 用户授权（模型来源、调用规模、费用上限）
-- 状态：`进行中`（2026-10-24 用户授权本地生成端点并实测：生成半项通过，记录见 `docs/00-model-connectivity.md`；Embedding 选型已定为硅基流动 `BAAI/bge-m3` 免费档，待用户填入 `EMBEDDING_API_KEY` 后运行 `evals/tools/probe_embedding.py` 补验）
+- 状态：`待验收`（2026-10-24 两半项均实测通过：生成——本地端点中文问答与 JSON 引用契约；Embedding——硅基流动 bge-m3 最小请求 1024 维一致 + 中文语义抽查区分度正常，记录见 `docs/00-model-connectivity.md`，探测工具 `evals/tools/probe_embedding.py` 可复跑）
 - 交付物：`docs/00-model-connectivity.md`
 - 验收条件：
   1. `FILE` 生成与 Embedding 各至少 1 次最小调用的记录：供应商、模型名、日期、请求条数、返回状态、向量维度（Embedding）、实际费用或 `未知`。
@@ -498,7 +498,7 @@
 
 ## 10. 待补充信息与已作出的常规决定
 
-1. **模型与费用**：生成模型已确认（2026-10-24：用户本地自部署 qwen3.8，OpenAI 兼容端点，见 `docs/model-and-cost.md`）。剩余：Embedding 选型（本地端点实测无该接口，DeepSeek 亦无；候选为本地部署 bge-m3 或云端 API）→ 阻塞 S0-T06 Embedding 半项与 S1-T05 真实向量写入。
+1. **模型与费用**：已解决（2026-10-24）——生成：用户本地自部署 qwen3.8（OpenAI 兼容端点，自有硬件，无 API 账单）；Embedding：硅基流动 `BAAI/bge-m3` 免费标准版（1024 维实测一致）。两半项最小连通均通过（`docs/00-model-connectivity.md`），真实向量写入（S1-T05）的模型侧阻塞解除；效果评估以 S1-T10 基线为准。
 2. **实际环境限制**：先核对 Docker/Compose 与应用运行时；默认新建本项目专用 PostgreSQL + pgvector，不复用其他项目数据库。若核对发现限制，再针对实际阻塞补充信息。
 
 已决定：Git 已初始化；无权限对象返回 404、未登录 401；历史引用与撤权策略见实施方案；合成语料沿用团队交付场景；中文关键词基线候选为 jieba + rank_bm25，P1 接入前核对发布包维护/兼容性并锁版本；沿用原规划指标作为建议目标。公开部署和邀请试用在相应阶段再协调，不阻塞当前规划与本地闭环。
