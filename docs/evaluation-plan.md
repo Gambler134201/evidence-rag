@@ -33,5 +33,6 @@
 
 ## 4. 现状（诚实边界）
 
+- 2026-10-25（阶段 B 实验）：dev 集纯检索扫描——vector@5 82.8%、**vector@8 87.9%**、hybrid-rrf40@5 86.2%、**重排（vector top-20 → bge-reranker → top-5）87.9%**：重排以 top-5 成本达到 top-8 的召回上限，精确覆盖 R2 类失败；RRF k 值不敏感。报告 `evals/results/phase-b-experiments.md`。
 - 2026-10-25：**80 条冻结主集正式 A/B 已完成**（每题 n=3，真实模型）：留出集稳定通过率 vector **92.5%** / hybrid 82.5%；Evidence Recall@5（锚点级）vector **81.0%** / hybrid 74.6%，三轮零波动；时延 P50 8.5~10.4s。混合检索未显优势（近邻干扰语料词汇重叠吸引 BM25 通道），默认模式维持向量。系统性失败题（m67/m68 应澄清未澄清、m36 检索不足等）已列为下一轮优化素材。报告：`evals/results/formal-ab/report.md`。数字不外推为企业准确率。
 - 权限/生命周期断言 ≥20 项在 S2-T08，独立于问答质量分母。
