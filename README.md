@@ -1,5 +1,7 @@
 # 知据 / evidence-rag
 
+[![CI](https://github.com/Gambler134201/evidence-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/Gambler134201/evidence-rag/actions/workflows/ci.yml)
+
 面向小型团队的可溯源知识助手：从**有效且有权限**的文档中回答问题，每个结论都带可核对的原文引用；证据不足时明确拒答或追问，绝不编造。
 
 当前状态：**阶段 2（权限与版本管理）代码完成并通过 93 项自动化测试；阶段 3（评测对照）脚手架就绪**。核心闭环已可用：登录 → 多知识库管理 → 上传/异步处理/发布/停用 → 授权检索（向量/混合两种模式）→ 契约化回答（六态）→ 引用溯源 → 运行记录。
@@ -54,7 +56,7 @@ ENABLE_REAL_MODEL_CALLS=1 .venv/Scripts/python.exe evals/tools/run_smoke_baselin
 
 - [实施方案](docs/implementation-plan.md) · [任务清单](docs/implementation-backlog.md) · [评测口径](docs/evaluation-plan.md)
 - [模型与费用](docs/model-and-cost.md) · [金标核对](evals/gold-review.md) · [优化迭代记录](docs/optimization-log.md)
-- [A/B 对照报告](evals/results/ab-comparison-report.md) · [演示脚本](docs/demo-script.md) · [案例复盘](docs/case-study.md)
+- [A/B 对照报告](evals/results/ab-comparison-report.md) · [演示脚本](docs/demo-script.md) · [案例复盘](docs/case-study.md) · [成熟产品对标与迭代路线](docs/roadmap-mature.md)
 - AI 产出物来源与哈希：[PROVENANCE.md](PROVENANCE.md) · 开发方法：见下
 
 ## 开发方法
