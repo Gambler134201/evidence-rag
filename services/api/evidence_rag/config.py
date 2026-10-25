@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     # ── 上传限制（工程配置；超限报 oversized，不得误报成扫描件）──
     ingest_max_bytes: int = 10 * 1024 * 1024
 
+    # ── 检索阈值（A1 校准：0.45 拒答 / 0.62 警告，见 evals/results/min-score-calibration.md；
+    #    默认 None = 关闭，评测协议不启用；产品路径经 .env 显式配置生效）──
+    retrieval_refuse_score: float | None = None
+    retrieval_warn_score: float | None = None
+
     @property
     def database_url(self) -> str:
         return (

@@ -189,3 +189,17 @@ def test_qa_knowledge_changed_on_publish_during_generation(db_session, kb_with_d
                            embedder=embedder)
     assert resp["status"] == "knowledge_changed"
     assert resp["segments"] == []
+
+
+def test_qa_low_relevance_warning_flag(db_session, kb_with_doc):
+    """A1：warn_score 配置时，回答带 low_relevance 标记（前端据此显示警告条）。"""
+    embedder = MockEmbedding()
+    _ingest_and_publish(db_session, kb_with_doc["kb"], kb_with_doc["doc"], MD_V1, embedder)
+    resp = answer_question(db_session, kb_id=kb_with_doc["kb"], user_id=kb_with_doc["user"],
+                           question="验收期限是几天？", generation=MockGeneration(default=ANSWER_JSON),
+                           embedder=embedder, warn_score=0.99)
+    assert resp.get("low_relevance") is True
+    resp2 = answer_question(db_session, kb_id=kb_with_doc["kb"], user_id=kb_with_doc["user"],
+                            question="验收期限是几天？", generation=MockGeneration(default=ANSWER_JSON),
+                            embedder=embedder, warn_score=None)
+    assert "low_relevance" not in resp2, "未配置警告阈值时不得输出标记"

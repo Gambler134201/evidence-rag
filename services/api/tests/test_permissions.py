@@ -72,13 +72,21 @@ def store(migrated_engine):
 
 
 @pytest.fixture()
-def client(store):
+def client(store, monkeypatch):
+    import copy
+
     from evidence_rag import main as main_mod
+    from evidence_rag.config import get_settings as real_get_settings
 
     gen = MockGeneration(default=ANSWER_JSON)
     emb = MockEmbedding()
     orig_clients = main_mod.get_clients
     main_mod.get_clients = lambda: (gen, emb)
+    # 测试内关闭检索阈值：mock 证据分数不适用于本地 .env 的校准值
+    fake_settings = copy.deepcopy(real_get_settings())
+    fake_settings.retrieval_refuse_score = None
+    fake_settings.retrieval_warn_score = None
+    monkeypatch.setattr(main_mod, "get_settings", lambda: fake_settings)
 
     def override_session():
         yield store["session"]

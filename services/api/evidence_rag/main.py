@@ -14,6 +14,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from . import auth, lifecycle
+from .config import get_settings
 from .db import engine, get_session
 from .routes_kb import router as kb_router
 from .models import Document, QueryRun
@@ -88,9 +89,12 @@ def create_app() -> FastAPI:
     ) -> dict:
         lifecycle.require_kb_member(session, user.id, kb_id)
         generation, embedder = get_clients()
+        settings = get_settings()
         result = answer_question(
             session, kb_id=kb_id, user_id=user.id, question=body.question,
             generation=generation, embedder=embedder, top_k=body.top_k,
+            min_score=settings.retrieval_refuse_score,
+            warn_score=settings.retrieval_warn_score,
         )
         session.commit()
         return result

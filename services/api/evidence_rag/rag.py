@@ -98,8 +98,9 @@ def answer_question(
     generation: GenerationClient,
     embedder: EmbeddingClient,
     top_k: int = 5,
-    min_score: float | None = None,  # 拒答阈值：开发集校准前不启用（None = 仅零证据拒答）
+    min_score: float | None = None,  # 拒答阈值：None = 不启用（产品路径经路由传入校准值）
     retrieval_mode: str = "vector",  # vector=实验 A 基线；hybrid=实验 B（+BM25 RRF）
+    warn_score: float | None = None,  # 低相关警告阈值：仍回答但提示用户证据相关度较低
 ) -> dict:
     run = QueryRun(
         user_id=user_id,
@@ -146,6 +147,7 @@ def answer_question(
     if not top or (min_score is not None and top[0].score < min_score):
         return finish("insufficient_evidence", {"segments": [], "evidence": [], "clarify": []},
                       segments=[])
+    low_relevance = warn_score is not None and top[0].score < warn_score
 
     numbered = [
         {
@@ -210,7 +212,8 @@ def answer_question(
     return finish(
         status,
         {"segments": segments, "evidence": public_evidence,
-         "clarify": parsed.get("clarify") or []},
+         "clarify": parsed.get("clarify") or [],
+         **({"low_relevance": True} if low_relevance else {})},
         segments=segments,
     )
 

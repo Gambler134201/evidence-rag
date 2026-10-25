@@ -20,6 +20,7 @@ type QueryResponse = {
   evidence: Evidence[];
   clarify?: string[];
   error_detail?: string;
+  low_relevance?: boolean;
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
@@ -140,6 +141,7 @@ export default function Home() {
         <section className="answer">
           <div className="answer-head">
             <span className={badge?.cls ?? "badge"}>{badge?.label ?? resp.status}</span>
+            {resp.low_relevance && <span className="badge warn">证据相关度较低，建议补充条件或换个问法</span>}
             {resp.error_detail && <code className="err-detail">{resp.error_detail}</code>}
           </div>
 
