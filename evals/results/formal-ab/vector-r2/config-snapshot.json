@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-25T07:12:34.090714+00:00",
+  "mode": "vector",
+  "dataset": "evals/datasets/main-80.jsonl",
+  "top_k": 5,
+  "generation": {
+    "base": "",
+    "model": "见 .env（本地端点）"
+  },
+  "embedding": {
+    "model": "BAAI/bge-m3（免费标准版）",
+    "dimension": 1024
+  },
+  "corpus": "skipped"
+}

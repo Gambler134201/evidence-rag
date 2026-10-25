@@ -46,7 +46,7 @@ ENABLE_REAL_MODEL_CALLS=1 .venv/Scripts/python.exe evals/tools/run_smoke_baselin
 - **问答**：契约化六态回答（含拒答不伪造引用、编造引用整体拦截、生成期间知识变更丢弃）、检索模式可切换（精确向量 / 向量+BM25+RRF 混合）
 - **运行记录**：检索/生成耗时、token、错误分类、引用与片段快照
 - **测试**：93 项自动化测试（对真实 PostgreSQL，无网络全绿）
-- **评测**：冒烟集 9/9 pass（经作者复核转正）、A/B 对照报告、六类 badcase 归因、一次有完整证据链的提示词优化迭代（7/9 → 9/9，见 [docs/optimization-log.md](docs/optimization-log.md)）
+- **评测**：80 条冻结评测集（作者金标复核），正式 A/B（每题 n=3）：留出集稳定通过率 **92.5%**（向量）/ 82.5%（混合），Evidence Recall@5 **81.0%** / 74.6%，三轮零波动；六类 badcase 归因；一次提示词优化迭代（7/9 → 9/9，见 [docs/optimization-log.md](docs/optimization-log.md)）
 
 ## 明确未实现
 

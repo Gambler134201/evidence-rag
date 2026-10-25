@@ -323,3 +323,19 @@ cd /e/AIjob/gpt/rag
 - 对标调研（dify 159k / ragflow 92.8k / kotaemon 25.8k / quivr 39.6k / FastGPT 29.9k）：差距分析与取舍见 `docs/roadmap-mature.md`——立即吸收 CI；吸收中：运行记录页、低相关警告、反馈闭环；缓做：重排、PDF 高亮、成员管理界面；不抄：GraphRAG/OCR/连接器/Agentic 多步检索（规划 §3 红线）。
 - GitHub Actions：`.github/workflows/ci.yml`——pgvector:pg16 服务容器 + 全量 93 项测试 + 前端生产构建，README 徽章已挂。首轮失败（test_settings 断言写死本地库名）→ 修为环境无关断言后全绿。
 - 仓库配置：git 代理已固化到本仓库（`http.proxy=127.0.0.1:5780`，VPN 客户端本地端口），推送走代理隧道。
+
+---
+
+## 19. 冻结主集正式 A/B 完成（S3 核心里程碑达成）
+
+作者复核通过并授权冻结后：`evals/datasets/main-80.jsonl`（40/40 类别均衡、真近似对零跨集、确定性切分脚本可复现）+ `gold-review-main.md`（80 行核对记录）。正式 A/B 六轮（vector/hybrid × 3，每轮 80 题真实模型）：
+
+| 指标（留出集 40，3 轮一致） | A 精确向量 | B 混合 |
+|---|---|---|
+| Evidence Recall@5（锚点级） | **81.0%** | 74.6% |
+| 稳定通过率（≥2/3 轮 pass） | **92.5%** | 82.5% |
+| Recall 波动 | 0.0pp | 0.0pp |
+
+关键发现：**混合检索在近邻干扰语料上未显优势**——干扰文档与正确文档共享词汇，BM25 通道同样被吸引，RRF 稀释向量强命中；“不预设 B 更好”被实测验证，默认模式维持向量。Recall 81.0% 落在语料有效性区间（60~85%），距 85% 门槛的差距（m04/m36/m57/m58/m59 系统性失败）构成下一轮素材。
+
+排障：正式 A/B 首跑因 Docker Desktop 未随休眠恢复而失败——拉起 Docker → 重启容器 → 重跑成功（后续可加自启）。
