@@ -48,6 +48,8 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needLogin, setNeedLogin] = useState(false);
+  const [fbState, setFbState] = useState<"idle" | "reason" | "sent">("idle");
+  const [fbReason, setFbReason] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginMsg, setLoginMsg] = useState<string | null>(null);
@@ -95,6 +97,16 @@ export default function Home() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function sendFeedback(useful: boolean) {
+    if (!resp) return;
+    const r = await fetch(`${API_BASE}/query-runs/${resp.run_id}/feedback`, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ useful, reason: useful ? null : fbReason || null }),
+    });
+    setFbState(r.ok ? "sent" : "idle");
   }
 
   const badge = resp ? STATUS_BADGE[resp.status] : undefined;
@@ -185,6 +197,20 @@ export default function Home() {
           )}
 
           <p className="runid">运行记录 {resp.run_id}</p>
+          {fbState === "sent" ? (
+            <p className="badge ok">反馈已记录，感谢——无用反馈会进入回流清单</p>
+          ) : (
+            <div className="login">
+              <span className="badge">这条回答有帮助吗？</span>
+              <button className="op" onClick={() => sendFeedback(true)}>👍 有用</button>
+              <button className="op" onClick={() => setFbState("reason")}>👎 无用</button>
+              {fbState === "reason" && (<>
+                <input value={fbReason} onChange={e => setFbReason(e.target.value)}
+                       placeholder="原因（可选，例如：应先澄清团队归属）" />
+                <button className="op" onClick={() => sendFeedback(false)}>提交</button>
+              </>)}
+            </div>
+          )}
         </section>
       )}
 

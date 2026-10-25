@@ -261,3 +261,46 @@ def test_run_detail_includes_evidence_trace(store, client):
     assert "locator" in first and "score" in first
     assert d["retrieval_ms"] is not None and d["total_ms"] is not None
     assert d["config_snapshot"]["retrieval"] in ("vector", "hybrid")
+
+
+# ── A3 反馈闭环 ───────────────────────────────────────────────────────
+
+def test_feedback_submit_owner_only(store, client):
+    run_id = _ask(store, client, "member", "验收期限是几天？")
+    _as(store, client, "member")
+    ok = client.post(f"/query-runs/{run_id}/feedback",
+                     json={"useful": False, "reason": "没有确认团队归属"})
+    assert ok.status_code == 200 and ok.json()["useful"] is False
+    _as(store, client, "outsider")
+    assert client.post(f"/query-runs/{run_id}/feedback",
+                       json={"useful": True}).status_code == 404, "外人不得对他人运行反馈"
+
+
+def test_feedback_revoked_user_cannot_submit(store, client):
+    run_id = _ask(store, client, "member", "q")
+    lifecycle.revoke_membership(store["session"], kb_id=store["kb"],
+                                user_id=store["member"].id, actor_user_id=store["admin"].id)
+    store["session"].commit()
+    _as(store, client, "member")
+    assert client.post(f"/query-runs/{run_id}/feedback",
+                       json={"useful": False}).status_code == 404, "撤权后不可再反馈"
+
+
+def test_feedback_list_admin_scoped(store, client):
+    run_id = _ask(store, client, "member", "验收期限是几天？")
+    _as(store, client, "member")
+    client.post(f"/query-runs/{run_id}/feedback",
+                json={"useful": False, "reason": "应先澄清团队"})
+    _as(store, client, "admin")
+    rows = client.get(f"/knowledge-bases/{store['kb']}/feedback").json()
+    assert len(rows) == 1 and rows[0]["useful"] is False
+    assert rows[0]["question"] == "验收期限是几天？"
+    # 其他知识库的管理员看不到这条（跨库不泄露）
+    kb2 = KnowledgeBase(name="kb-x", slug="kb-x")
+    store["session"].add(kb2)
+    store["session"].flush()
+    store["session"].add(Membership(user_id=store["admin"].id, kb_id=kb2.id, role="admin"))
+    store["session"].commit()
+    _as(store, client, "admin")
+    other = client.get(f"/knowledge-bases/{kb2.id}/feedback").json()
+    assert other == []

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,7 @@ from .models import (
     Chunk,
     Document,
     DocumentVersion,
+    Feedback,
     IndexBuild,
     IngestionJob,
     KnowledgeBase,
@@ -26,6 +28,51 @@ from .models import (
 from .worker import enqueue_ingest
 
 router = APIRouter()
+
+
+class FeedbackIn(BaseModel):
+    useful: bool
+    reason: str | None = None
+
+
+@router.post("/query-runs/{run_id}/feedback", tags=["qa"])
+def submit_feedback(
+    run_id: str,
+    body: FeedbackIn,
+    session: Session = Depends(get_session),
+    user=Depends(auth.get_current_user),
+) -> dict:
+    """对本人的一次运行提交反馈（A3 反馈闭环入口）。撤权后不可再反馈。"""
+    run = lifecycle.require_run_access(session, user.id, run_id)
+    session.add(Feedback(
+        run_id=run.id, user_id=user.id,
+        useful=body.useful, reason=(body.reason or None),
+    ))
+    session.commit()
+    return {"status": "recorded", "useful": body.useful}
+
+
+@router.get("/knowledge-bases/{kb_id}/feedback", tags=["admin"])
+def list_feedback(
+    kb_id: int,
+    limit: int = 50,
+    session: Session = Depends(get_session),
+    user=Depends(auth.get_current_user),
+) -> list[dict]:
+    """回流清单：本知识库的反馈（管理员可见，供 badcase 回流评审）。"""
+    lifecycle.require_kb_admin(session, user.id, kb_id)
+    rows = session.execute(
+        select(Feedback, QueryRun)
+        .join(QueryRun, QueryRun.id == Feedback.run_id)
+        .where(QueryRun.kb_id == kb_id)
+        .order_by(Feedback.id.desc())
+        .limit(min(max(limit, 1), 200))
+    ).all()
+    return [{
+        "feedback_id": fb.id, "run_id": str(run.id), "question": run.question,
+        "run_status": run.status, "useful": fb.useful, "reason": fb.reason,
+        "created_at": fb.created_at.isoformat(),
+    } for fb, run in rows]
 
 
 @router.get("/knowledge-bases", tags=["kb"])

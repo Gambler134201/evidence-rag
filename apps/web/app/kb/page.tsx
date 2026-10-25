@@ -5,6 +5,11 @@ import Link from "next/link";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
+type FbRow = {
+  feedback_id: number; run_id: string; question: string;
+  run_status: string; useful: boolean; reason: string | null; created_at: string;
+};
+
 type Doc = {
   document_id: number;
   title: string;
@@ -32,6 +37,7 @@ export default function KbPage() {
   const [autoPublish, setAutoPublish] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [needLogin, setNeedLogin] = useState(false);
+  const [fbs, setFbs] = useState<FbRow[] | null>(null);
 
   const load = useCallback(async (id: number | null) => {
     const target = id ?? kbId;
@@ -45,6 +51,8 @@ export default function KbPage() {
         setKbId(chosen);
         const d = await fetch(`${API_BASE}/knowledge-bases/${chosen}/documents`, { credentials: "include" });
         if (d.ok) setDocs(await d.json());
+        const f = await fetch(`${API_BASE}/knowledge-bases/${chosen}/feedback`, { credentials: "include" });
+        setFbs(f.ok ? await f.json() : null);
       }
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
@@ -156,6 +164,28 @@ export default function KbPage() {
           </tbody>
         </table>
         {docs.length === 0 && <p>暂无文档，先上传一份。</p>}
+      </section>
+
+      <section className="answer">
+        <h2>反馈回流清单（无用反馈 → 评测候选）</h2>
+        {fbs === null && <p>—</p>}
+        {fbs?.length === 0 && <p>暂无反馈。</p>}
+        {fbs?.length > 0 && (
+          <table className="docs">
+            <thead><tr><th>时间</th><th>问题</th><th>运行状态</th><th>原因</th><th></th></tr></thead>
+            <tbody>
+              {fbs.filter(x => !x.useful).map(x => (
+                <tr key={x.feedback_id}>
+                  <td>{new Date(x.created_at).toLocaleString("zh-CN")}</td>
+                  <td>{x.question}</td>
+                  <td>{x.run_status}</td>
+                  <td>{x.reason ?? "—"}</td>
+                  <td><Link href={`/runs/${x.run_id}`}>轨迹 →</Link></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
     </main>
   );
