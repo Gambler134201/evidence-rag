@@ -137,6 +137,7 @@ def main() -> int:
     results = {}
     for label, mode, topn, rrf_k in configs:
         hits = total = 0
+        per_q: dict[str, str] = {}
         for (q, gold), qv in zip(eval_qs, q_vecs):
             kid = kb_id_by_slug[q["caller"]["kb"]]
             if mode == "vector":
@@ -146,9 +147,11 @@ def main() -> int:
                 bm_rows = rank_bm25(kid, q["q"], max(topn * 4, 20))
                 ranked = rrf_fuse(vec_rows, bm_rows, rrf_k, topn)
             r = recall_at(ranked, gold)
+            per_q[q["id"]] = f"{r[0]}/{r[1]}"
             hits += r[0]
             total += r[1]
-        results[label] = {"recall": hits / total if total else 0, "hits": hits, "total": total}
+        results[label] = {"recall": hits / total if total else 0, "hits": hits,
+                          "total": total, "per_question": per_q}
         print(f"  {label}: Recall = {hits}/{total} = {hits/total*100:.1f}%")
 
     # ── B3 重排实验：vector top-20 → bge-reranker → top-5 ──
@@ -171,6 +174,7 @@ def main() -> int:
 
     rr_hits = rr_total = 0
     rr_failed = 0
+    rr_per_q: dict[str, str] = {}
     for (q, gold), qv in zip(eval_qs, q_vecs):
         kid = kb_id_by_slug[q["caller"]["kb"]]
         vec_rows = rank_vector(kid, qv, 20)
@@ -185,12 +189,16 @@ def main() -> int:
             continue
         reranked = [vec_rows[i] for i in order][:5]
         r = recall_at(reranked, gold)
+        rr_per_q[q["id"]] = f"{r[0]}/{r[1]}"
         rr_hits += r[0]
         rr_total += r[1]
     if not rr_failed:
         results["rerank@5"] = {"recall": rr_hits / rr_total if rr_total else 0,
-                               "hits": rr_hits, "total": rr_total}
+                               "hits": rr_hits, "total": rr_total,
+                               "per_question": rr_per_q}
         print(f"  rerank@5: Recall = {rr_hits}/{rr_total} = {rr_hits/rr_total*100:.1f}%")
+    else:
+        print(f"  rerank@5：{rr_failed} 次调用失败，本轮不写入结果")
 
     # ── 报告 ──
     out = ["# 阶段 B 实验报告：参数扫描 + 重排（冻结 dev 集，纯检索口径）", "",
@@ -208,6 +216,15 @@ def main() -> int:
 
     (REPO / "evals/results/phase-b-experiments.md").write_text("\n".join(out) + "\n", encoding="utf-8")
     print("报告: evals/results/phase-b-experiments.md")
+
+    # 逐题明细：每个配置一行 JSON（qid → "命中数/分母"），供报告数字溯源。
+    detail_path = REPO / "evals/results/phase-b-experiments-detail.jsonl"
+    detail_path.write_text(
+        "\n".join(json.dumps({"config": label, "per_question": r["per_question"]},
+                              ensure_ascii=False)
+                  for label, r in results.items()) + "\n",
+        encoding="utf-8")
+    print("逐题明细: evals/results/phase-b-experiments-detail.jsonl")
     session.close()
     return 0
 

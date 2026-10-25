@@ -166,27 +166,28 @@ export default function KbPage() {
         {docs.length === 0 && <p>暂无文档，先上传一份。</p>}
       </section>
 
-      <section className="answer">
-        <h2>反馈回流清单（无用反馈 → 评测候选）</h2>
-        {fbs === null && <p>—</p>}
-        {fbs?.length === 0 && <p>暂无反馈。</p>}
-        {fbs?.length > 0 && (
-          <table className="docs">
-            <thead><tr><th>时间</th><th>问题</th><th>运行状态</th><th>原因</th><th></th></tr></thead>
-            <tbody>
-              {fbs.filter(x => !x.useful).map(x => (
-                <tr key={x.feedback_id}>
-                  <td>{new Date(x.created_at).toLocaleString("zh-CN")}</td>
-                  <td>{x.question}</td>
-                  <td>{x.run_status}</td>
-                  <td>{x.reason ?? "—"}</td>
-                  <td><Link href={`/runs/${x.run_id}`}>轨迹 →</Link></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+      {fbs !== null && (
+        <section className="answer">
+          <h2>反馈回流清单（无用反馈 → 评测候选）</h2>
+          {fbs.length === 0 && <p>暂无反馈。</p>}
+          {fbs.length > 0 && (
+            <table className="docs">
+              <thead><tr><th>时间</th><th>问题</th><th>运行状态</th><th>原因</th><th></th></tr></thead>
+              <tbody>
+                {fbs.filter(x => !x.useful).map(x => (
+                  <tr key={x.feedback_id}>
+                    <td>{new Date(x.created_at).toLocaleString("zh-CN")}</td>
+                    <td>{x.question}</td>
+                    <td>{x.run_status}</td>
+                    <td>{x.reason ?? "—"}</td>
+                    <td><Link href={`/runs/${x.run_id}`}>轨迹 →</Link></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
     </main>
   );
 }

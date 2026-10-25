@@ -42,24 +42,28 @@ export default function RunsPage() {
 
       <section className="answer">
         {runs === null && <p>加载中…</p>}
-        {runs?.length === 0 && <p>暂无运行记录，去首页提一个问题。</p>}
-        {runs?.length > 0 && (
-          <table className="docs">
-            <thead><tr><th>时间</th><th>问题</th><th>状态</th><th>耗时</th><th>错误</th><th></th></tr></thead>
-            <tbody>
-              {runs.map(x => (
-                <tr key={x.run_id}>
-                  <td>{new Date(x.created_at).toLocaleString("zh-CN")}</td>
-                  <td>{x.question}</td>
-                  <td><span className={x.status === "answered" ? "badge ok" : "badge warn"}>
-                    {STATUS_CN[x.status] ?? x.status}</span></td>
-                  <td>{x.total_ms ? `${(x.total_ms / 1000).toFixed(1)}s` : "—"}</td>
-                  <td>{x.error_class ? <span className="err-detail">{x.error_class}</span> : "—"}</td>
-                  <td><Link href={`/runs/${x.run_id}`}>详情 →</Link></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {runs !== null && (
+          <>
+            {runs.length === 0 && <p>暂无运行记录，去首页提一个问题。</p>}
+            {runs.length > 0 && (
+              <table className="docs">
+                <thead><tr><th>时间</th><th>问题</th><th>状态</th><th>耗时</th><th>错误</th><th></th></tr></thead>
+                <tbody>
+                  {runs.map(x => (
+                    <tr key={x.run_id}>
+                      <td>{new Date(x.created_at).toLocaleString("zh-CN")}</td>
+                      <td>{x.question}</td>
+                      <td><span className={x.status === "answered" ? "badge ok" : "badge warn"}>
+                        {STATUS_CN[x.status] ?? x.status}</span></td>
+                      <td>{x.total_ms ? `${(x.total_ms / 1000).toFixed(1)}s` : "—"}</td>
+                      <td>{x.error_class ? <span className="err-detail">{x.error_class}</span> : "—"}</td>
+                      <td><Link href={`/runs/${x.run_id}`}>详情 →</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
         )}
       </section>
     </main>
