@@ -74,12 +74,14 @@ class OpenAICompatGeneration:
 
 
 class OpenAICompatEmbedding:
-    def __init__(self, base_url: str, model: str, api_key: str = "", dimension: int = 1024, timeout: int = 60):
+    def __init__(self, base_url: str, model: str, api_key: str = "", dimension: int = 1024,
+                 timeout: int = 60, rerank_model: str = "BAAI/bge-reranker-v2-m3"):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.api_key = api_key
         self.dimension = dimension
         self.timeout = timeout
+        self.rerank_model = rerank_model
         self.last_usage: dict | None = None
 
     def embed(self, texts: list[str]) -> list[list[float]]:
@@ -111,7 +113,7 @@ class OpenAICompatEmbedding:
         """重排（实验 C 产品化，B3 验证：dev 集 Recall@5 87.9%）。同一提供方的 /rerank 接口。"""
         req = urllib.request.Request(
             self.base_url + "/rerank",
-            data=json.dumps({"model": self.model, "query": query,
+            data=json.dumps({"model": self.rerank_model, "query": query,
                              "documents": documents, "top_n": len(documents)}).encode("utf-8"),
             headers={"Content-Type": "application/json",
                      **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {})})
@@ -192,5 +194,6 @@ def get_clients() -> tuple[GenerationClient, EmbeddingClient]:
             settings.embedding_model,
             settings.embedding_api_key,
             settings.embedding_dimension,
+            rerank_model="BAAI/bge-reranker-v2-m3",
         ),
     )
