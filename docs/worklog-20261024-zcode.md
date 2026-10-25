@@ -317,3 +317,9 @@ cd /e/AIjob/gpt/rag
 - 发布前审计：跟踪树无 .env/密钥；一处 config 快照含 tailnet 端点域名（外部不可解析、无凭据）——当前树已脱敏，生成器不再记录端点；**git 历史中该快照的旧版本（82f6b0c 引入）仍含此域名**，风险评级低（无法从外部访问），如介意可用 git filter-repo 重写历史（会变更全部提交哈希，worklog 中的哈希引用需同步更新）。
 - 措辞落档：原"不说开源"（评审缺口 7）的考量，因作者决定补 MIT License 开源而解除，scope-decisions 已更新。
 - 决策记录：MIT 选择由作者指令"开源到 github"直接授权；版权人 Gambler134201。
+
+### 17.2 成熟产品对标 + GitHub Actions CI（2026-10-25 追加）
+
+- 对标调研（dify 159k / ragflow 92.8k / kotaemon 25.8k / quivr 39.6k / FastGPT 29.9k）：差距分析与取舍见 `docs/roadmap-mature.md`——立即吸收 CI；吸收中：运行记录页、低相关警告、反馈闭环；缓做：重排、PDF 高亮、成员管理界面；不抄：GraphRAG/OCR/连接器/Agentic 多步检索（规划 §3 红线）。
+- GitHub Actions：`.github/workflows/ci.yml`——pgvector:pg16 服务容器 + 全量 93 项测试 + 前端生产构建，README 徽章已挂。首轮失败（test_settings 断言写死本地库名）→ 修为环境无关断言后全绿。
+- 仓库配置：git 代理已固化到本仓库（`http.proxy=127.0.0.1:5780`，VPN 客户端本地端口），推送走代理隧道。
