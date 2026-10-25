@@ -75,7 +75,14 @@ def main() -> int:
     user_id = ensure_user(session, "eval-runner")
 
     dataset_path = REPO / args.dataset
-    questions = [json.loads(ln) for ln in dataset_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    questions = []
+    for ln in dataset_path.read_text(encoding="utf-8").splitlines():
+        if not ln.strip():
+            continue
+        obj = json.loads(ln)
+        if obj.get("_record_type") == "dataset-header":
+            continue  # 冻结数据集的头行（状态与切分规则），不是题目
+        questions.append(obj)
     out_dir = REPO / "evals" / "results" / args.name
     out_dir.mkdir(parents=True, exist_ok=True)
 
