@@ -103,7 +103,7 @@ export default function Home() {
     <main className="page">
       <header className="header">
         <h1>知据 <span className="en">evidence-rag</span></h1>
-        <p className="tagline">回答基于当前有效文档，每个结论都可以点开原文核对。 <Link href="/kb">知识库管理 →</Link></p>
+        <p className="tagline">回答基于当前有效文档，每个结论都可以点开原文核对。 <Link href="/kb">知识库管理 →</Link> · <Link href="/runs">运行记录 →</Link></p>
       </header>
 
       {needLogin && (

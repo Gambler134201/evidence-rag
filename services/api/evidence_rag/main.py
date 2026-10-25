@@ -17,7 +17,7 @@ from . import auth, lifecycle
 from .config import get_settings
 from .db import engine, get_session
 from .routes_kb import router as kb_router
-from .models import Document, QueryRun
+from .models import Chunk, Document, QueryRun, QueryRunEvidence
 from .providers import get_clients
 from .rag import answer_question
 
@@ -106,14 +106,28 @@ def create_app() -> FastAPI:
         user=Depends(auth.get_current_user),
     ) -> dict:
         run = lifecycle.require_run_access(session, user.id, run_id)
+        ev_rows = session.execute(
+            select(QueryRunEvidence, Chunk.content)
+            .join(Chunk, Chunk.id == QueryRunEvidence.chunk_id)
+            .where(QueryRunEvidence.run_id == run.id)
+            .order_by(QueryRunEvidence.evidence_no)
+        ).all()
         session.commit()
         return {
             "run_id": str(run.id), "kb_id": run.kb_id, "question": run.question,
             "status": run.status, "segments": run.answer_segments,
-            "error_class": run.error_class, "retrieval_ms": run.retrieval_ms,
-            "generation_ms": run.generation_ms, "total_ms": run.total_ms,
+            "error_class": run.error_class, "error_detail": run.error_detail,
+            "retrieval_ms": run.retrieval_ms, "generation_ms": run.generation_ms,
+            "total_ms": run.total_ms,
             "prompt_tokens": run.prompt_tokens, "completion_tokens": run.completion_tokens,
             "cost_note": run.cost_note,
+            "config_snapshot": run.config_snapshot,
+            "evidence": [{
+                "evidence_no": e.evidence_no, "chunk_id": e.chunk_id,
+                "version_id": e.version_id, "locator": e.locator,
+                "score": round(e.score, 4) if e.score is not None else None,
+                "content_preview": content[:160],
+            } for e, content in ev_rows],
         }
 
     @app.get("/chunks/{chunk_id}", tags=["qa"])

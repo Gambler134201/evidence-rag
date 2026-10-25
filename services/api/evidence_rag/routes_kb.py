@@ -20,6 +20,8 @@ from .models import (
     IngestionJob,
     KnowledgeBase,
     Membership,
+    QueryRun,
+    QueryRunEvidence,
 )
 from .worker import enqueue_ingest
 
@@ -201,6 +203,41 @@ def retry_job(job_id: int, session: Session = Depends(get_session),
         version.status = "processing"
     session.commit()
     return {"job_id": job.id, "status": "queued"}
+
+
+@router.get("/query-runs", tags=["qa"])
+def list_my_runs(
+    limit: int = 20,
+    offset: int = 0,
+    session: Session = Depends(get_session),
+    user=Depends(auth.get_current_user),
+) -> dict:
+    """本人运行记录列表（A2 运行记录页）。撤权后对应知识库的记录即从列表消失
+    （与 require_run_access 的口径一致）。"""
+    from sqlalchemy import exists as sa_exists
+
+    limit = min(max(limit, 1), 100)
+    offset = max(offset, 0)
+    member_kb = sa_exists(
+        select(Membership.kb_id).where(
+            Membership.user_id == user.id, Membership.kb_id == QueryRun.kb_id
+        )
+    )
+    base = select(QueryRun).where(QueryRun.user_id == user.id, member_kb)
+    total = session.execute(
+        select(__import__("sqlalchemy").func.count()).select_from(base.subquery())
+    ).scalar_one()
+    runs = session.execute(
+        base.order_by(QueryRun.created_at.desc()).offset(offset).limit(limit)
+    ).scalars().all()
+    return {
+        "total": total,
+        "runs": [{
+            "run_id": str(r.id), "kb_id": r.kb_id, "question": r.question,
+            "status": r.status, "error_class": r.error_class,
+            "total_ms": r.total_ms, "created_at": r.created_at.isoformat(),
+        } for r in runs],
+    }
 
 
 @router.post("/versions/{version_id}/publish", tags=["admin"])

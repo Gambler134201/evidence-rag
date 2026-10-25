@@ -1,4 +1,5 @@
 """S2-T06 验收：管理页面接口——列表、详情、任务可读、发布/重试与授权过滤。"""
+import json as _json
 import uuid as _uuid
 
 import pytest
@@ -6,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
+from evidence_rag import lifecycle
 from evidence_rag.auth import SESSION_COOKIE, create_session
 from evidence_rag.db import get_session
 from evidence_rag.ingest import ingest_version, publish_build
@@ -48,11 +50,18 @@ def store(migrated_engine):
 
 
 @pytest.fixture()
-def client(store):
+def client(store, monkeypatch):
+    import copy
+
     from evidence_rag import main as main_mod
+    from evidence_rag.config import get_settings as real_get_settings
     from evidence_rag.main import app
 
     orig = main_mod.get_clients
+    fake_settings = copy.deepcopy(real_get_settings())
+    fake_settings.retrieval_refuse_score = None
+    fake_settings.retrieval_warn_score = None
+    monkeypatch.setattr(main_mod, "get_settings", lambda: fake_settings)
     main_mod.get_clients = lambda: (
         MockGeneration(default='{"status":"answered","segments":'
                                '[{"text":"3 个工作日","citation_ids":["C1"]}]}'),
@@ -199,3 +208,56 @@ def test_authorization_on_page_apis(store, client):
         select(DocumentVersion.id).where(DocumentVersion.document_id == store["doc"])
     ).scalar_one()
     assert client.post(f"/versions/{vid}/publish").status_code == 404
+
+
+# ── A2 运行记录页接口 ─────────────────────────────────────────────────
+
+def _ask(store, client, key: str, question: str) -> str:
+    _as(store, client, key)
+    r = client.post(f"/knowledge-bases/{store['kb']}/queries", json={"question": question})
+    client.last_ask = _json.dumps(r.json(), ensure_ascii=False)
+    return r.json()["run_id"]
+
+
+def test_runs_list_owner_scoped(store, client):
+    run_id = _ask(store, client, "member", "验收期几天？")
+    _as(store, client, "member")
+    r = client.get("/query-runs")
+    assert r.status_code == 200
+    ids = [x["run_id"] for x in r.json()["runs"]]
+    assert run_id in ids and r.json()["total"] >= 1
+    # 外人列表为空（本人可见口径）
+    _as(store, client, "outsider")
+    assert client.get("/query-runs").json()["runs"] == []
+
+
+def test_runs_list_disappears_after_revoke(store, client):
+    """撤权后对应知识库的运行记录从列表消失（与详情口径一致）。"""
+    run_id = _ask(store, client, "member", "验收期几天？")
+    lifecycle.revoke_membership(store["session"], kb_id=store["kb"],
+                                user_id=store["member"].id, actor_user_id=store["admin"].id)
+    store["session"].commit()
+    _as(store, client, "member")
+    ids = [x["run_id"] for x in client.get("/query-runs").json()["runs"]]
+    assert run_id not in ids
+
+
+def test_runs_list_pagination(store, client):
+    _ask(store, client, "member", "问题一")
+    _ask(store, client, "member", "问题二")
+    page = client.get("/query-runs?limit=1&offset=0").json()
+    assert len(page["runs"]) == 1 and page["total"] >= 2
+
+
+def test_run_detail_includes_evidence_trace(store, client):
+    """轨迹查看器：详情含引用编号、定位、分数与片段内容预览。"""
+    run_id = _ask(store, client, "member", "验收期限是几天？")
+    _as(store, client, "member")
+    d = client.get(f"/query-runs/{run_id}").json()
+    assert d["evidence"], ("轨迹必须包含证据", d, client.last_ask)
+    first = d["evidence"][0]
+    assert first["evidence_no"] == "C1"
+    assert first["content_preview"], "证据内容预览缺失"
+    assert "locator" in first and "score" in first
+    assert d["retrieval_ms"] is not None and d["total_ms"] is not None
+    assert d["config_snapshot"]["retrieval"] in ("vector", "hybrid")
