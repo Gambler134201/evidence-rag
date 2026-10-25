@@ -94,3 +94,21 @@ def test_unknown_mode_rejected(kb_with_doc):
     with pytest.raises(ValueError, match="未知检索模式"):
         search_chunks(kb_with_doc["session"], kb_id=kb_with_doc["kb"],
                       query_text="x", embedder=MockEmbedding(), mode="graph")
+
+
+def test_rerank_mode_end_to_end(kb_with_doc):
+    """实验 C 产品化：mode=rerank 走 embedder.rerank，链路与 vector 等效。"""
+    ANSWER = '{"status": "answered", "segments": [{"text": "3 个工作日", "citation_ids": ["C1"]}]}'
+    from evidence_rag.providers import MockGeneration
+
+    resp = answer_question(
+        kb_with_doc["session"], kb_id=kb_with_doc["kb"], user_id=kb_with_doc["user"],
+        question="验收期限是几天？", generation=MockGeneration(default=ANSWER),
+        embedder=MockEmbedding(), retrieval_mode="rerank",
+    )
+    assert resp["status"] == "answered"
+    mode = kb_with_doc["session"].execute(
+        __import__("sqlalchemy").text(
+            "SELECT config_snapshot->>'retrieval' FROM query_runs ORDER BY created_at DESC LIMIT 1")
+    ).scalar_one()
+    assert mode == "rerank"

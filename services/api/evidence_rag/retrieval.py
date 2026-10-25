@@ -206,6 +206,30 @@ def search_hybrid_chunks(
     return candidates[:top_k], candidates
 
 
+def search_rerank_chunks(
+    session: Session,
+    *,
+    kb_id: int,
+    query_text: str,
+    embedder: EmbeddingClient,
+    top_k: int = 5,
+    candidate_k: int = 20,
+) -> tuple[list[RetrievedChunk], list[RetrievedChunk]]:
+    """实验 C 产品化（B3 验证：dev 集 Recall@5 87.9%）：向量取 candidate_k ->
+    embedder.rerank 语义重排 -> 取 top_k。重排失败会抛错（fail-loud）。"""
+    vec_top, _ = search_similar_chunks(
+        session, kb_id=kb_id, query_text=query_text, embedder=embedder,
+        top_k=candidate_k, candidate_k=candidate_k,
+    )
+    if not vec_top:
+        return [], []
+    order = embedder.rerank(query_text, [c.content for c in vec_top])
+    reranked = [vec_top[i] for i in order if isinstance(i, int) and 0 <= i < len(vec_top)]
+    rest = [c for c in vec_top if c not in reranked]
+    candidates = (reranked + rest)[:candidate_k]
+    return candidates[:top_k], candidates
+
+
 def search_chunks(
     session: Session,
     *,
@@ -216,9 +240,14 @@ def search_chunks(
     top_k: int = 5,
     candidate_k: int = 20,
 ) -> tuple[list[RetrievedChunk], list[RetrievedChunk]]:
-    """统一入口：mode = vector（实验 A 基线）| hybrid（实验 B，向量+BM25 RRF）。"""
+    """统一入口：mode = vector（实验 A 基线）| hybrid（实验 B）| rerank（实验 C 产品化）。"""
     if mode == "hybrid":
         return search_hybrid_chunks(
+            session, kb_id=kb_id, query_text=query_text, embedder=embedder,
+            top_k=top_k, candidate_k=candidate_k,
+        )
+    if mode == "rerank":
+        return search_rerank_chunks(
             session, kb_id=kb_id, query_text=query_text, embedder=embedder,
             top_k=top_k, candidate_k=candidate_k,
         )

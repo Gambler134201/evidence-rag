@@ -46,7 +46,7 @@ from run_smoke_baseline import STATUS_MAP, ensure_kb, ensure_user, ingest_corpus
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", default="evals/smoke-10-draft.jsonl")
-    ap.add_argument("--mode", choices=["vector", "hybrid"], default="vector")
+    ap.add_argument("--mode", choices=["vector", "hybrid", "rerank"], default="vector")
     ap.add_argument("--name", required=True, help="输出子目录名（evals/results/{name}/）")
     ap.add_argument("--skip-ingest", action="store_true")
     ap.add_argument("--top-k", type=int, default=5)

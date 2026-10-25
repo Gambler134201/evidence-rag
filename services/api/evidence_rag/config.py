@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     #    默认 None = 关闭，评测协议不启用；产品路径经 .env 显式配置生效）──
     retrieval_refuse_score: float | None = None
     retrieval_warn_score: float | None = None
+    # 检索模式：vector（默认基线）| rerank（实验 C 产品化，B3 验证 dev 集 87.9%）
+    retrieval_mode: str = "vector"
 
     @property
     def database_url(self) -> str:

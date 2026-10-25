@@ -95,6 +95,7 @@ def create_app() -> FastAPI:
             generation=generation, embedder=embedder, top_k=body.top_k,
             min_score=settings.retrieval_refuse_score,
             warn_score=settings.retrieval_warn_score,
+            retrieval_mode=settings.retrieval_mode,
         )
         session.commit()
         return result

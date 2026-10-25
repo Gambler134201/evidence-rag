@@ -29,6 +29,10 @@ class EmbeddingClient(Protocol):
     def embed(self, texts: list[str]) -> list[list[float]]:
         ...
 
+    def rerank(self, query: str, documents: list[str]) -> list[int]:
+        """返回按相关度排序的文档下标（最优在前）。"""
+        ...
+
 
 class OpenAICompatGeneration:
     def __init__(self, base_url: str, model: str, api_key: str = "", timeout: int = 120):
@@ -103,6 +107,23 @@ class OpenAICompatEmbedding:
                 raise RuntimeError(f"embedding_dimension_mismatch: got {len(v)}, expect {self.dimension}")
         return vectors
 
+    def rerank(self, query: str, documents: list[str]) -> list[int]:
+        """重排（实验 C 产品化，B3 验证：dev 集 Recall@5 87.9%）。同一提供方的 /rerank 接口。"""
+        req = urllib.request.Request(
+            self.base_url + "/rerank",
+            data=json.dumps({"model": self.model, "query": query,
+                             "documents": documents, "top_n": len(documents)}).encode("utf-8"),
+            headers={"Content-Type": "application/json",
+                     **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {})})
+        try:
+            with _NO_PROXY_OPENER.open(req, timeout=self.timeout) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            raise RuntimeError(f"rerank_http_{exc.code}: {exc.read().decode('utf-8', 'replace')[:200]}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"rerank_unreachable: {exc.reason}") from exc
+        return [item["index"] for item in body["results"]]
+
 
 class MockEmbedding:
     """确定性 mock 向量：字符 bigram 哈希进 1024 维并归一。
@@ -128,6 +149,10 @@ class MockEmbedding:
             norm = math.sqrt(sum(x * x for x in vec)) or 1.0
             vectors.append([x / norm for x in vec])
         return vectors
+
+    def rerank(self, query: str, documents: list[str]) -> list[int]:
+        """mock 恒序重排：不改变向量检索排序（测试确定性优先）。"""
+        return list(range(len(documents)))
 
 
 class MockGeneration:
