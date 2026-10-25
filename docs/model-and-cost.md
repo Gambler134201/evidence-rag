@@ -24,6 +24,7 @@
 - **注意**：bge-m3 不支持 `dimensions` 参数（传入返回 400）；调用端不得发送该参数，维度一致性以 `EMBEDDING_DIMENSION` 硬校验（脚本 `evals/tools/probe_embedding.py` 已实现）。
 - **待办**：用户创建密钥 → 运行 `probe_embedding.py` → 结果摘录进 `00-model-connectivity.md` 补 S0-T06 Embedding 半项 → 解锁 S1-T05。
 - **费用口径**：标准版免费，费用记 0 并注明“免费标准版 + 记录日期”；若误用 Pro 变体会产生 ¥0.07/M 费用，调用时模型名必须精确为 `BAAI/bge-m3`。
+- **2026-10-25 事件**：账户返回 402（余额不足），免费模型调用一并被拒——欠费状态下免费模型也会停用。待充值或更换密钥后，`run_eval --mode rerank` 复验即可恢复；期间 Embedding 相关验证暂停（如实记录，不猜测恢复时间）。另修复：重排请求曾误用 Embedding 模型名（400 model-does-not-exist），客户端已改为独立 rerank_model 字段。
 - **本地部署 bge-m3 保留为后备**：若云端免费档未来取消或网络不稳，可本地部署（GGUF Q8 约 600 MB），配置只需换 `.env` 三个变量。
 
 **背景（原始选项记录）**：本地生成端点不提供 `/v1/embeddings`（2026-10-24 实测 404）；DeepSeek 官方 API 也没有 Embedding 接口。备选方案：本地部署 bge-m3（零 API 费用、数据不出本机）或云端 API（需注册与密钥）。用户选定后者。
