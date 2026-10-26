@@ -52,6 +52,19 @@ ENABLE_REAL_MODEL_CALLS=1 .venv/Scripts/python.exe evals/tools/run_smoke_baselin
 
 成员管理界面、日志/导出全量脱敏、多轮追问、关键词检索的正式 A/B 结论（80 条主集草稿待作者复核后冻结）、用户验证、公开部署。规划细节见 [docs/implementation-backlog.md](docs/implementation-backlog.md)。
 
+## 架构
+
+```mermaid
+flowchart TB
+    U[成员/管理员] --> W["Next.js 前端（问答/知识库管理/运行轨迹）"]
+    W --> A["FastAPI：认证 · 授权 · 问答契约（六态）"]
+    A --> R["检索：精确向量 / 混合 BM25+RRF / 重排"]
+    A --> G["生成模型（本地 OpenAI 兼容端点）"]
+    A --> D[("PostgreSQL 16 + pgvector：版本不可变 · 发布指针 · 运行记录")]
+    WQ["入库 worker：解析 · 分块 · Embedding · 发布"] --> D
+    U -->|上传| WQ
+```
+
 ## 文档索引
 
 - [实施方案](docs/implementation-plan.md) · [任务清单](docs/implementation-backlog.md) · [评测口径](docs/evaluation-plan.md)

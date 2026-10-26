@@ -359,3 +359,13 @@ cd /e/AIjob/gpt/rag
 - **B3 重排**：vector top-20 → bge-reranker-v2-m3 → top-5 = **87.9%**——以 top-5 成本达到 top-8 上限，精确覆盖 R2。重排调用走硅基流动免费档（40 次调用，0 成本）。
 - **决策**：实验 C（重排）收益确认，进入产品路径（retrieval_mode=rerank）；B2 的调参结论（RRF k 不敏感、窗口扩大有效）记录在案。
 - 报告：`evals/results/phase-b-experiments.md`、`evals/results/failure-attribution.md`。
+
+---
+
+## 20. UI 设计系统 v3 + 阶段 E 规模压测 + v0.2.0 发布
+
+- **UI v3**（参考 Linear/Vercel/Notion 的克制秩序感）：中性灰底 + 单一青绿强调、8px 网格、柔和边框、阴影只留悬浮层、大写字距标签、焦点环可访问性、徽章加描边与圆点、证据卡 hover 反馈。全部 6 页路由生产构建通过并切到生产模式预览（:3000 由 `npm run start` 提供）。
+- **阶段 E 规模压测**（`evals/results/scale-benchmark.md`）：精确检索 2 万行 P50 71ms 无拐点——HNSW 触发条件未触发，维持精确检索；HNSW 作为储备（13 倍加速一条 SQL）；内存 BM25 2 万文档构建 0.1s/单查询 18ms——corpus_limit 可放宽。**阶段 E 完成**。
+- **C1 引用上下文**：`/chunks/{id}/context` 返回同构建全文 + 命中标记，前端原文视图高亮命中段（测试含越权 404 断言）。
+- **D4 发布**：tag v0.2.0 + [GitHub Release](https://github.com/Gambler134201/evidence-rag/releases/tag/v0.2.0)。
+- 插曲：scale_benchmark 首跑因 REPO 未定义崩在报告落盘（压测数据已产出）——补 REPO 导入重跑，表用后即删。
