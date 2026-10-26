@@ -287,6 +287,31 @@ def list_my_runs(
     }
 
 
+@router.get("/chunks/{chunk_id}/context", tags=["qa"])
+def chunk_context(chunk_id: int, session: Session = Depends(get_session),
+                  user=Depends(auth.get_current_user)) -> dict:
+    """引用最后一公里（阶段 C1）：返回命中 chunk 所属构建的全文（按序）与命中位置，
+    前端渲染全文并高亮命中段。访问控制与单 chunk 一致。"""
+    hit = session.get(Chunk, chunk_id)
+    if hit is None:
+        raise HTTPException(status_code=404, detail="not found")
+    lifecycle.require_chunk_access(session, user.id, chunk_id)
+    rows = session.execute(
+        select(Chunk)
+        .where(Chunk.index_build_id == hit.index_build_id)
+        .order_by(Chunk.ordinal)
+    ).scalars().all()
+    doc = session.get(Document, session.get(DocumentVersion, hit.version_id).document_id)
+    return {
+        "document_id": doc.id, "title": doc.title,
+        "version_id": hit.version_id, "hit_chunk_id": hit.id,
+        "chunks": [{
+            "chunk_id": c.id, "ordinal": c.ordinal, "locator": c.locator,
+            "content": c.content, "is_hit": c.id == hit.id,
+        } for c in rows],
+    }
+
+
 @router.post("/versions/{version_id}/publish", tags=["admin"])
 def publish_version(version_id: int, session: Session = Depends(get_session),
                     user=Depends(auth.get_current_user)) -> dict:

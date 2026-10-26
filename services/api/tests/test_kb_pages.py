@@ -304,3 +304,19 @@ def test_feedback_list_admin_scoped(store, client):
     _as(store, client, "admin")
     other = client.get(f"/knowledge-bases/{kb2.id}/feedback").json()
     assert other == []
+
+
+def test_chunk_context_full_document_with_hit_marker(store, client):
+    """C1：引用上下文返回同构建全文（按序），并标出命中段。"""
+    _as(store, client, "member")
+    chunk_id = store["session"].execute(
+        __import__("sqlalchemy").text(
+            "SELECT c.id FROM chunks c WHERE c.index_build_id = "
+            "(SELECT active_index_build_id FROM documents WHERE id = :d) ORDER BY c.ordinal LIMIT 1"),
+        {"d": store["doc"]}).scalar_one()
+    d = client.get(f"/chunks/{chunk_id}/context").json()
+    assert d["title"] == "交付规则" and d["hit_chunk_id"] == chunk_id
+    assert len(d["chunks"]) >= 1 and any(c["is_hit"] for c in d["chunks"])
+    assert all(c["content"] for c in d["chunks"])
+    _as(store, client, "outsider")
+    assert client.get(f"/chunks/{chunk_id}/context").status_code == 404
